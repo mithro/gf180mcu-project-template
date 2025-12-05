@@ -85,6 +85,60 @@ SLOT_LABELS = {
 }
 
 
+def parse_pad_lef(lef_dir: Path) -> dict[str, tuple[float, float]]:
+    """Parse LEF files to get pad cell dimensions."""
+    pad_sizes = {}
+
+    for lef_file in lef_dir.glob("*.lef"):
+        with open(lef_file) as f:
+            content = f.read()
+
+        # Extract SIZE X BY Y
+        match = re.search(r"SIZE\s+([\d.]+)\s+BY\s+([\d.]+)", content)
+        if match:
+            width = float(match.group(1))
+            height = float(match.group(2))
+            cell_name = lef_file.stem
+            pad_sizes[cell_name] = (width, height)
+
+    return pad_sizes
+
+
+def validate_geometry(slots: dict[str, SlotInfo], pad_sizes: dict[str, tuple[float, float]]) -> list[str]:
+    """Validate slot dimensions against pad geometry."""
+    warnings = []
+
+    # Get typical IO pad height (use bi_t as reference)
+    io_pad_height = None
+    for name, (w, h) in pad_sizes.items():
+        if "bi_t" in name or "bi_24t" in name:
+            io_pad_height = h
+            break
+
+    if io_pad_height is None:
+        warnings.append("Could not find IO pad dimensions for validation")
+        return warnings
+
+    # Expected core offset = pad height + margin
+    # We expect ~350µm pad + ~92µm margin = ~442µm
+    expected_min_offset = io_pad_height  # At minimum, pad height
+
+    for name, slot in slots.items():
+        # Calculate actual offset from YAML
+        # CORE_AREA starts at [442, 442, ...] meaning 442µm offset
+        # This is derived from DIE - CORE
+        die_width = slot.die_width_um
+        core_width = slot.core_width_um
+        offset = (die_width - core_width) / 2
+
+        if offset < expected_min_offset:
+            warnings.append(
+                f"{name}: Core offset ({offset:.0f}µm) is less than pad height ({io_pad_height:.0f}µm)"
+            )
+
+    return warnings
+
+
 def parse_slot_yaml(yaml_path: Path) -> SlotInfo:
     """Parse a slot YAML file and extract slot information."""
     with open(yaml_path) as f:
@@ -522,6 +576,19 @@ def main():
         return 1
 
     print(f"Found {len(slots)} slot configurations")
+
+    # Validate against pad geometry if available
+    pdk_io_dir = script_dir / "gf180mcu" / "gf180mcuD" / "libs.ref" / "gf180mcu_fd_io" / "lef"
+    if pdk_io_dir.exists():
+        print(f"Validating against pad geometry from: {pdk_io_dir}")
+        pad_sizes = parse_pad_lef(pdk_io_dir)
+        warnings = validate_geometry(slots, pad_sizes)
+        for warning in warnings:
+            print(f"  WARNING: {warning}")
+        if not warnings:
+            print("  Validation passed: geometry consistent")
+    else:
+        print("Note: PDK not found, skipping geometry validation")
 
     # Generate outputs
     generate_json(slots, output_dir / "slots.json")
