@@ -13,11 +13,20 @@ Usage:
 import argparse
 import json
 import re
+import subprocess
+import sys
+import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
+
+try:
+    from PIL import Image
+    HAS_PIL = True
+except ImportError:
+    HAS_PIL = False
 
 
 @dataclass
@@ -137,6 +146,84 @@ def validate_geometry(slots: dict[str, SlotInfo], pad_sizes: dict[str, tuple[flo
             )
 
     return warnings
+
+
+REPO = "wafer-space/gf180mcu-project-template"
+IMAGE_ARTIFACT_SUFFIX = "_image"
+THUMBNAIL_WIDTH = 400
+JPEG_QUALITY = 85
+
+
+def download_images(output_dir: Path) -> bool:
+    """Download slot images from latest GitHub Actions run."""
+    if not HAS_PIL:
+        print("Warning: Pillow not installed, skipping image download")
+        return False
+
+    images_dir = output_dir / "images"
+    thumbnails_dir = output_dir / "thumbnails"
+    images_dir.mkdir(parents=True, exist_ok=True)
+    thumbnails_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        # Get latest successful run
+        result = subprocess.run(
+            ["gh", "api", f"repos/{REPO}/actions/runs?branch=main&status=success&per_page=1",
+             "-q", ".workflow_runs[0].id"],
+            capture_output=True, text=True, check=True
+        )
+        run_id = result.stdout.strip()
+        if not run_id:
+            print("No successful runs found")
+            return False
+
+        print(f"Downloading images from run {run_id}...")
+
+        # Get artifacts
+        result = subprocess.run(
+            ["gh", "api", f"repos/{REPO}/actions/runs/{run_id}/artifacts",
+             "-q", ".artifacts[].name"],
+            capture_output=True, text=True, check=True
+        )
+        artifacts = [a for a in result.stdout.strip().split("\n") if a.endswith(IMAGE_ARTIFACT_SUFFIX)]
+
+        for artifact_name in artifacts:
+            slot_name = artifact_name.replace(IMAGE_ARTIFACT_SUFFIX, "")
+            print(f"  Downloading {slot_name}...")
+
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                subprocess.run(
+                    ["gh", "run", "download", run_id, "-R", REPO, "-n", artifact_name, "-D", tmp_dir],
+                    check=True, capture_output=True
+                )
+
+                for png_file in Path(tmp_dir).glob("*.png"):
+                    variant = "black" if "black" in png_file.name.lower() else "white"
+                    new_name = f"{slot_name}_{variant}.png"
+
+                    # Copy full image
+                    final_path = images_dir / new_name
+                    png_file.rename(final_path)
+
+                    # Create thumbnail
+                    thumb_path = thumbnails_dir / f"{slot_name}_{variant}.jpg"
+                    with Image.open(final_path) as img:
+                        if img.mode in ("RGBA", "P"):
+                            img = img.convert("RGB")
+                        width, height = img.size
+                        if width > THUMBNAIL_WIDTH:
+                            ratio = THUMBNAIL_WIDTH / width
+                            img = img.resize((THUMBNAIL_WIDTH, int(height * ratio)), Image.Resampling.LANCZOS)
+                        img.save(thumb_path, "JPEG", quality=JPEG_QUALITY, optimize=True)
+
+        return True
+
+    except subprocess.CalledProcessError as e:
+        print(f"Error downloading images: {e}")
+        return False
+    except FileNotFoundError:
+        print("Error: 'gh' CLI not found. Install GitHub CLI to download images.")
+        return False
 
 
 def parse_slot_yaml(yaml_path: Path) -> SlotInfo:
@@ -555,6 +642,11 @@ def main():
         default=None,
         help="Directory containing slot YAML files (default: librelane/slots)",
     )
+    parser.add_argument(
+        "--download-images",
+        action="store_true",
+        help="Download slot images from latest GitHub Actions run",
+    )
 
     args = parser.parse_args()
 
@@ -589,6 +681,14 @@ def main():
             print("  Validation passed: geometry consistent")
     else:
         print("Note: PDK not found, skipping geometry validation")
+
+    # Download images if requested
+    if args.download_images:
+        print("Downloading images from GitHub Actions...")
+        if download_images(output_dir):
+            print("Images downloaded successfully")
+        else:
+            print("Image download failed or skipped")
 
     # Generate outputs
     generate_json(slots, output_dir / "slots.json")
