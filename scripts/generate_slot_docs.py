@@ -193,6 +193,64 @@ def generate_json(slots: dict[str, SlotInfo], output_path: Path) -> None:
     print(f"Generated: {output_path}")
 
 
+def generate_markdown(slots: dict[str, SlotInfo], output_path: Path) -> None:
+    """Generate Markdown file with slot information."""
+    lines = [
+        "# GF180MCU Slot Sizes",
+        "",
+        "This document describes the available slot sizes for wafer.space projects.",
+        "",
+        "## Slot Dimensions",
+        "",
+        "| Slot | Die Size | Usable Area | Utilization | Total IOs |",
+        "|------|----------|-------------|-------------|-----------|",
+    ]
+
+    slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5"]
+    sorted_names = sorted(slots.keys(), key=lambda x: slot_order.index(x) if x in slot_order else 99)
+
+    for name in sorted_names:
+        slot = slots[name]
+        die_size = f"{slot.die_width_mm:.2f}mm × {slot.die_height_mm:.2f}mm"
+        core_size = f"{slot.core_width_mm:.2f}mm × {slot.core_height_mm:.2f}mm ({slot.core_area_mm2:.2f}mm²)"
+        util = f"{slot.utilization_pct:.0f}%"
+        ios = str(slot.io_total)
+        lines.append(f"| {slot.label} | {die_size} | {core_size} | {util} | {ios} |")
+
+    lines.extend([
+        "",
+        "## IO Breakdown",
+        "",
+        "| Slot | Bidirectional | Inputs | Analog | Power Pairs |",
+        "|------|---------------|--------|--------|-------------|",
+    ])
+
+    for name in sorted_names:
+        slot = slots[name]
+        lines.append(
+            f"| {slot.label} | {slot.io_bidir} | {slot.io_inputs} | {slot.io_analog} | {slot.io_power_pairs} |"
+        )
+
+    lines.extend([
+        "",
+        "## Notes",
+        "",
+        "- **Die Size**: Total slot dimensions including sealring (26µm per side)",
+        "- **Usable Area**: CORE_AREA where standard cells can be placed (inside padring)",
+        "- **Utilization**: Ratio of usable area to total die area",
+        "- **Power Pairs**: Each pair consists of one DVDD and one DVSS pad",
+        "",
+        f"*Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}*",
+        "",
+    ])
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w") as f:
+        f.write("\n".join(lines))
+
+    print(f"Generated: {output_path}")
+
+
 if __name__ == "__main__":
     script_dir = Path(__file__).parent.parent
     slots_dir = script_dir / "librelane" / "slots"
@@ -200,3 +258,4 @@ if __name__ == "__main__":
 
     slots = load_all_slots(slots_dir)
     generate_json(slots, output_dir / "slots.json")
+    generate_markdown(slots, output_dir / "SLOTS.md")
