@@ -86,4 +86,12 @@ copy-final: ## Copy final output files from the last run
 render-image: ## Render an image from the final layout (after copy-final)
 	mkdir -p img/
 	PDK_ROOT=${PDK_ROOT} PDK=${PDK} python3 scripts/lay2img.py final/gds/${TOP}.gds img/${TOP}.png --width 2048 --oversampling 4
-.PHONY: copy-final
+.PHONY: render-image
+
+slot-docs: ## Generate slot documentation for GitHub Pages
+	uv run scripts/generate_slot_docs.py -o gh-pages
+.PHONY: slot-docs
+
+slot-docs-with-images: ## Generate slot documentation with images
+	uv run scripts/generate_slot_docs.py -o gh-pages --download-images
+.PHONY: slot-docs-with-images
