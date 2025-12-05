@@ -147,16 +147,56 @@ def load_all_slots(slots_dir: Path) -> dict[str, SlotInfo]:
     return slots
 
 
+def generate_json(slots: dict[str, SlotInfo], output_path: Path) -> None:
+    """Generate JSON file with slot information."""
+    data = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "slots": {},
+    }
+
+    # Sort by slot order: 1x1 first
+    slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5"]
+    sorted_names = sorted(slots.keys(), key=lambda x: slot_order.index(x) if x in slot_order else 99)
+
+    for name in sorted_names:
+        slot = slots[name]
+        data["slots"][name] = {
+            "label": slot.label,
+            "die": {
+                "width_um": slot.die_width_um,
+                "height_um": slot.die_height_um,
+                "width_mm": round(slot.die_width_mm, 3),
+                "height_mm": round(slot.die_height_mm, 3),
+                "area_mm2": round(slot.die_area_mm2, 2),
+            },
+            "core": {
+                "width_um": slot.core_width_um,
+                "height_um": slot.core_height_um,
+                "width_mm": round(slot.core_width_mm, 3),
+                "height_mm": round(slot.core_height_mm, 3),
+                "area_mm2": round(slot.core_area_mm2, 2),
+            },
+            "utilization_pct": round(slot.utilization_pct, 1),
+            "io": {
+                "bidir": slot.io_bidir,
+                "inputs": slot.io_inputs,
+                "analog": slot.io_analog,
+                "power_pairs": slot.io_power_pairs,
+                "total": slot.io_total,
+            },
+        }
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w") as f:
+        json.dump(data, f, indent=2)
+
+    print(f"Generated: {output_path}")
+
+
 if __name__ == "__main__":
-    # Test parsing
     script_dir = Path(__file__).parent.parent
     slots_dir = script_dir / "librelane" / "slots"
+    output_dir = script_dir / "gh-pages"
 
     slots = load_all_slots(slots_dir)
-    for name, slot in slots.items():
-        print(f"{slot.label}:")
-        print(f"  Die: {slot.die_width_um}×{slot.die_height_um}µm ({slot.die_area_mm2:.2f}mm²)")
-        print(f"  Core: {slot.core_width_um}×{slot.core_height_um}µm ({slot.core_area_mm2:.2f}mm²)")
-        print(f"  Utilization: {slot.utilization_pct:.1f}%")
-        print(f"  IOs: {slot.io_total} (bidir:{slot.io_bidir}, in:{slot.io_inputs}, analog:{slot.io_analog}, pwr:{slot.io_power_pairs})")
-        print()
+    generate_json(slots, output_dir / "slots.json")
