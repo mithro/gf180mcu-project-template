@@ -13,6 +13,7 @@ Usage:
 import argparse
 import json
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -203,7 +204,7 @@ def download_images(output_dir: Path) -> bool:
 
                     # Copy full image
                     final_path = images_dir / new_name
-                    png_file.rename(final_path)
+                    shutil.move(str(png_file), str(final_path))
 
                     # Create thumbnail
                     thumb_path = thumbnails_dir / f"{slot_name}_{variant}.jpg"
