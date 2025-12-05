@@ -251,6 +251,240 @@ def generate_markdown(slots: dict[str, SlotInfo], output_path: Path) -> None:
     print(f"Generated: {output_path}")
 
 
+def generate_html(
+    slots: dict[str, SlotInfo],
+    output_path: Path,
+    images_dir: Path | None = None,
+) -> None:
+    """Generate HTML file with slot information for GitHub Pages."""
+    slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5"]
+    sorted_names = sorted(slots.keys(), key=lambda x: slot_order.index(x) if x in slot_order else 99)
+
+    # Base width for 1x1 slot cards (in pixels)
+    base_width = 280
+
+    # Check which images exist
+    def get_image_path(name: str, variant: str) -> str | None:
+        if images_dir is None:
+            return None
+        thumb = images_dir / "thumbnails" / f"{name}_{variant}.jpg"
+        if thumb.exists():
+            return f"thumbnails/{name}_{variant}.jpg"
+        return None
+
+    generated_time = datetime.now(timezone.utc).strftime("%d %b %Y %H:%M UTC")
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GF180MCU Slot Sizes - wafer.space</title>
+    <style>
+        * {{ box-sizing: border-box; }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+            color: #333;
+        }}
+        h1 {{ text-align: center; margin-bottom: 10px; }}
+        .subtitle {{ text-align: center; color: #666; margin-bottom: 30px; }}
+        .subtitle a {{ color: #0066cc; text-decoration: none; }}
+        .section {{
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 0 auto 20px auto;
+            max-width: 1200px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }}
+        .section h2 {{ margin: 0 0 20px 0; text-align: center; }}
+        .slots-grid {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+        }}
+        .slot-card {{
+            background: #fafafa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }}
+        .slot-card h3 {{ margin: 0 0 10px 0; font-size: 1.1em; }}
+        .slot-card .dims {{ font-size: 0.85em; color: #666; margin-bottom: 10px; }}
+        .slot-card .specs {{ font-size: 0.8em; text-align: left; }}
+        .slot-card .specs dt {{ font-weight: bold; color: #555; }}
+        .slot-card .specs dd {{ margin: 0 0 8px 0; }}
+        .slot-card img {{
+            display: block;
+            margin: 10px auto;
+            border-radius: 4px;
+            cursor: pointer;
+        }}
+        .slot-card img:hover {{ opacity: 0.9; }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }}
+        th, td {{
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }}
+        th {{ background: #f5f5f5; font-weight: 600; }}
+        .download-link {{
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #0066cc;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+        }}
+        .download-link:hover {{ background: #0055aa; }}
+        .modal {{
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+        }}
+        .modal img {{
+            max-width: 95%; max-height: 95%;
+            margin: auto;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+        }}
+        .modal .close {{
+            position: absolute;
+            top: 20px; right: 35px;
+            color: white;
+            font-size: 40px;
+            cursor: pointer;
+        }}
+    </style>
+</head>
+<body>
+    <h1>GF180MCU Slot Sizes</h1>
+    <p class="subtitle">
+        wafer.space Project Template |
+        <a href="https://github.com/wafer-space/gf180mcu-project-template">GitHub</a> |
+        Generated: {generated_time}
+    </p>
+
+    <div class="section">
+        <h2>Available Slots</h2>
+        <div class="slots-grid">
+"""
+
+    for name in sorted_names:
+        slot = slots[name]
+        # Scale card width based on slot dimensions
+        scale = 1.0
+        if "0p5" in name and "x0p5" not in name:
+            scale = 0.5 if name.startswith("0p5") else 1.0
+        elif name == "0p5x0p5":
+            scale = 0.5
+
+        card_width = int(base_width * scale)
+        img_width = int(200 * scale)
+
+        img_html = ""
+        img_path = get_image_path(name, "white")
+        if img_path:
+            full_img = f"images/{name}_white.png"
+            img_html = f'<img src="{img_path}" alt="{slot.label}" width="{img_width}" onclick="openModal(\'{full_img}\')">'
+
+        html += f"""            <div class="slot-card" style="width: {card_width}px;">
+                <h3>{slot.label}</h3>
+                <div class="dims">{slot.die_width_mm:.2f}mm × {slot.die_height_mm:.2f}mm</div>
+                {img_html}
+                <dl class="specs">
+                    <dt>Usable Area</dt>
+                    <dd>{slot.core_width_mm:.2f}mm × {slot.core_height_mm:.2f}mm ({slot.core_area_mm2:.2f}mm²)</dd>
+                    <dt>Utilization</dt>
+                    <dd>{slot.utilization_pct:.0f}%</dd>
+                    <dt>Total IOs</dt>
+                    <dd>{slot.io_total} (bidir: {slot.io_bidir}, in: {slot.io_inputs}, analog: {slot.io_analog})</dd>
+                </dl>
+            </div>
+"""
+
+    html += """        </div>
+    </div>
+
+    <div class="section">
+        <h2>Detailed Specifications</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Slot</th>
+                    <th>Die Size</th>
+                    <th>Usable Area</th>
+                    <th>Utilization</th>
+                    <th>Bidir</th>
+                    <th>Inputs</th>
+                    <th>Analog</th>
+                    <th>Power</th>
+                </tr>
+            </thead>
+            <tbody>
+"""
+
+    for name in sorted_names:
+        slot = slots[name]
+        html += f"""                <tr>
+                    <td>{slot.label}</td>
+                    <td>{slot.die_width_mm:.2f}mm × {slot.die_height_mm:.2f}mm</td>
+                    <td>{slot.core_width_mm:.2f}mm × {slot.core_height_mm:.2f}mm ({slot.core_area_mm2:.2f}mm²)</td>
+                    <td>{slot.utilization_pct:.0f}%</td>
+                    <td>{slot.io_bidir}</td>
+                    <td>{slot.io_inputs}</td>
+                    <td>{slot.io_analog}</td>
+                    <td>{slot.io_power_pairs} pairs</td>
+                </tr>
+"""
+
+    html += """            </tbody>
+        </table>
+        <div style="text-align: center;">
+            <a href="slots.json" class="download-link">Download JSON</a>
+        </div>
+    </div>
+
+    <div id="imageModal" class="modal" onclick="closeModal()">
+        <span class="close">&times;</span>
+        <img id="modalImage">
+    </div>
+
+    <script>
+        function openModal(src) {
+            document.getElementById('imageModal').style.display = 'block';
+            document.getElementById('modalImage').src = src;
+        }
+        function closeModal() {
+            document.getElementById('imageModal').style.display = 'none';
+        }
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+    </script>
+</body>
+</html>
+"""
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w") as f:
+        f.write(html)
+
+    print(f"Generated: {output_path}")
+
+
 if __name__ == "__main__":
     script_dir = Path(__file__).parent.parent
     slots_dir = script_dir / "librelane" / "slots"
@@ -259,3 +493,4 @@ if __name__ == "__main__":
     slots = load_all_slots(slots_dir)
     generate_json(slots, output_dir / "slots.json")
     generate_markdown(slots, output_dir / "SLOTS.md")
+    generate_html(slots, output_dir / "index.html", images_dir=output_dir)
