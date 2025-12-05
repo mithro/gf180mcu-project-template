@@ -485,12 +485,52 @@ def generate_html(
     print(f"Generated: {output_path}")
 
 
-if __name__ == "__main__":
-    script_dir = Path(__file__).parent.parent
-    slots_dir = script_dir / "librelane" / "slots"
-    output_dir = script_dir / "gh-pages"
+def main():
+    parser = argparse.ArgumentParser(
+        description="Generate slot documentation with usable area calculations"
+    )
+    parser.add_argument(
+        "-o", "--output-dir",
+        type=Path,
+        default=Path("gh-pages"),
+        help="Output directory for generated files (default: gh-pages)",
+    )
+    parser.add_argument(
+        "--slots-dir",
+        type=Path,
+        default=None,
+        help="Directory containing slot YAML files (default: librelane/slots)",
+    )
 
+    args = parser.parse_args()
+
+    # Determine paths
+    script_dir = Path(__file__).parent.parent
+    slots_dir = args.slots_dir or (script_dir / "librelane" / "slots")
+    output_dir = args.output_dir
+
+    if not slots_dir.exists():
+        print(f"Error: Slots directory not found: {slots_dir}")
+        return 1
+
+    # Load and generate
+    print(f"Loading slots from: {slots_dir}")
     slots = load_all_slots(slots_dir)
+
+    if not slots:
+        print("Error: No slot configurations found")
+        return 1
+
+    print(f"Found {len(slots)} slot configurations")
+
+    # Generate outputs
     generate_json(slots, output_dir / "slots.json")
     generate_markdown(slots, output_dir / "SLOTS.md")
     generate_html(slots, output_dir / "index.html", images_dir=output_dir)
+
+    print(f"\nAll outputs written to: {output_dir}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
