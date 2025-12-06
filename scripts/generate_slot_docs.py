@@ -589,8 +589,7 @@ def generate_html(
             margin: 15px auto;
             border-radius: 4px;
             cursor: pointer;
-            max-width: 100%;
-            height: auto;
+            /* No max-width - display at natural thumbnail size for consistent scale */
         }}
         .slot-card img:hover {{ opacity: 0.9; }}
         table {{
