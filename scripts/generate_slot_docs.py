@@ -31,6 +31,10 @@ except ImportError:
     HAS_PIL = False
 
 
+# Seal ring width in microns (26µm on each side)
+SEAL_RING_UM = 26
+
+
 @dataclass
 class SlotInfo:
     """Information about a slot size."""
@@ -38,11 +42,11 @@ class SlotInfo:
     name: str  # "1x1", "0p5x1", etc.
     label: str  # "1×1 (Full)"
 
-    # Die area (total slot size) in microns
+    # Die area (total silicon size including seal ring) in microns
     die_width_um: int
     die_height_um: int
 
-    # Core area (usable area inside padring) in microns
+    # Core area (usable area inside IO ring) in microns
     core_width_um: int
     core_height_um: int
 
@@ -52,6 +56,7 @@ class SlotInfo:
     io_analog: int = 0
     io_power_pairs: int = 0
 
+    # === Die size (total silicon) ===
     @property
     def die_width_mm(self) -> float:
         return self.die_width_um / 1000
@@ -64,6 +69,28 @@ class SlotInfo:
     def die_area_mm2(self) -> float:
         return self.die_width_mm * self.die_height_mm
 
+    # === Slot size (die minus seal ring) ===
+    @property
+    def slot_width_um(self) -> int:
+        return self.die_width_um - (2 * SEAL_RING_UM)
+
+    @property
+    def slot_height_um(self) -> int:
+        return self.die_height_um - (2 * SEAL_RING_UM)
+
+    @property
+    def slot_width_mm(self) -> float:
+        return self.slot_width_um / 1000
+
+    @property
+    def slot_height_mm(self) -> float:
+        return self.slot_height_um / 1000
+
+    @property
+    def slot_area_mm2(self) -> float:
+        return self.slot_width_mm * self.slot_height_mm
+
+    # === Core area (inside IO ring) ===
     @property
     def core_width_mm(self) -> float:
         return self.core_width_um / 1000
@@ -76,12 +103,23 @@ class SlotInfo:
     def core_area_mm2(self) -> float:
         return self.core_width_mm * self.core_height_mm
 
+    # === Overhead calculations ===
     @property
     def io_overhead_pct(self) -> float:
         """Percentage of die area used by IO ring, seal ring, etc."""
         if self.die_area_mm2 == 0:
             return 0.0
         return ((self.die_area_mm2 - self.core_area_mm2) / self.die_area_mm2) * 100
+
+    @property
+    def seal_ring_area_mm2(self) -> float:
+        """Area consumed by seal ring."""
+        return self.die_area_mm2 - self.slot_area_mm2
+
+    @property
+    def io_ring_area_mm2(self) -> float:
+        """Area consumed by IO ring (slot area minus core area)."""
+        return self.slot_area_mm2 - self.core_area_mm2
 
     @property
     def io_total(self) -> int:
@@ -314,6 +352,13 @@ def generate_json(slots: dict[str, SlotInfo], output_path: Path) -> None:
                 "height_mm": round(slot.die_height_mm, 3),
                 "area_mm2": round(slot.die_area_mm2, 2),
             },
+            "slot": {
+                "width_um": slot.slot_width_um,
+                "height_um": slot.slot_height_um,
+                "width_mm": round(slot.slot_width_mm, 3),
+                "height_mm": round(slot.slot_height_mm, 3),
+                "area_mm2": round(slot.slot_area_mm2, 2),
+            },
             "core": {
                 "width_um": slot.core_width_um,
                 "height_um": slot.core_height_um,
@@ -345,10 +390,38 @@ def generate_markdown(slots: dict[str, SlotInfo], output_path: Path) -> None:
         "",
         "This document describes the available slot sizes for wafer.space projects.",
         "",
+        "## Understanding Slot Dimensions",
+        "",
+        "Each slot has three important size measurements:",
+        "",
+        "```",
+        "┌─────────────────────────────────────────┐",
+        "│             SEAL RING (26µm)            │",
+        "│  ┌───────────────────────────────────┐  │",
+        "│  │           IO RING                 │  │",
+        "│  │  ┌─────────────────────────────┐  │  │",
+        "│  │  │                             │  │  │",
+        "│  │  │        CORE AREA            │  │  │",
+        "│  │  │    (Your Design Area)       │  │  │",
+        "│  │  │                             │  │  │",
+        "│  │  └─────────────────────────────┘  │  │",
+        "│  │                                   │  │",
+        "│  └───────────────────────────────────┘  │",
+        "│                                         │",
+        "└─────────────────────────────────────────┘",
+        " ◄─────────── DIE SIZE ──────────────────►",
+        "   ◄──────── SLOT SIZE ────────────────►",
+        "      ◄────── CORE SIZE ───────────►",
+        "```",
+        "",
+        "- **Die Size**: The actual physical silicon dimensions, including all peripheral structures.",
+        "- **Slot Size**: Die size minus the seal ring (26µm on each edge). The seal ring protects the chip from damage during dicing.",
+        "- **Core Area**: The usable design area inside the IO ring where your logic is placed.",
+        "",
         "## Slot Dimensions",
         "",
-        "| Slot | Die Size | Usable Area | IO Overhead | Total IOs |",
-        "|------|----------|-------------|-------------|-----------|",
+        "| Slot | Die Size | Slot Size | Core Area | IO Overhead |",
+        "|------|----------|-----------|-----------|-------------|",
     ]
 
     slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5"]
@@ -356,33 +429,31 @@ def generate_markdown(slots: dict[str, SlotInfo], output_path: Path) -> None:
 
     for name in sorted_names:
         slot = slots[name]
-        die_size = f"{slot.die_width_mm:.2f}mm × {slot.die_height_mm:.2f}mm"
-        core_size = f"{slot.core_width_mm:.2f}mm × {slot.core_height_mm:.2f}mm ({slot.core_area_mm2:.2f}mm²)"
+        die_size = f"{slot.die_width_mm:.2f} × {slot.die_height_mm:.2f}mm ({slot.die_area_mm2:.2f}mm²)"
+        slot_size = f"{slot.slot_width_mm:.2f} × {slot.slot_height_mm:.2f}mm ({slot.slot_area_mm2:.2f}mm²)"
+        core_size = f"{slot.core_width_mm:.2f} × {slot.core_height_mm:.2f}mm ({slot.core_area_mm2:.2f}mm²)"
         overhead = f"{slot.io_overhead_pct:.0f}%"
-        ios = str(slot.io_total)
-        lines.append(f"| {slot.label} | {die_size} | {core_size} | {overhead} | {ios} |")
+        lines.append(f"| {slot.label} | {die_size} | {slot_size} | {core_size} | {overhead} |")
 
     lines.extend([
         "",
         "## IO Breakdown",
         "",
-        "| Slot | Bidirectional | Inputs | Analog | Power Pairs |",
-        "|------|---------------|--------|--------|-------------|",
+        "| Slot | Bidirectional | Inputs | Analog | Power Pairs | Total |",
+        "|------|---------------|--------|--------|-------------|-------|",
     ])
 
     for name in sorted_names:
         slot = slots[name]
         lines.append(
-            f"| {slot.label} | {slot.io_bidir} | {slot.io_inputs} | {slot.io_analog} | {slot.io_power_pairs} |"
+            f"| {slot.label} | {slot.io_bidir} | {slot.io_inputs} | {slot.io_analog} | {slot.io_power_pairs} | {slot.io_total} |"
         )
 
     lines.extend([
         "",
         "## Notes",
         "",
-        "- **Die Size**: Total slot dimensions including sealring (26µm per side)",
-        "- **Usable Area**: CORE_AREA where standard cells can be placed (inside padring)",
-        "- **Utilization**: Ratio of usable area to total die area",
+        "- **IO Overhead**: Percentage of die area consumed by seal ring and IO ring",
         "- **Power Pairs**: Each pair consists of one DVDD and one DVSS pad",
         "",
         f"*Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}*",
@@ -443,6 +514,39 @@ def generate_html(
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }}
         .section h2 {{ margin: 0 0 20px 0; text-align: center; }}
+        .section > p {{ text-align: center; color: #555; margin-bottom: 20px; }}
+        .size-diagram {{
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 0 auto 20px auto;
+            max-width: 500px;
+            overflow-x: auto;
+        }}
+        .size-diagram pre {{
+            margin: 0;
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.3;
+            white-space: pre;
+            color: #333;
+        }}
+        .size-definitions {{
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: left;
+        }}
+        .size-definitions dt {{
+            font-weight: bold;
+            color: #333;
+            margin-top: 15px;
+        }}
+        .size-definitions dd {{
+            margin: 5px 0 0 0;
+            color: #555;
+            line-height: 1.5;
+        }}
         .slots-grid {{
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -530,6 +634,40 @@ def generate_html(
     </p>
 
     <div class="section">
+        <h2>Understanding Slot Dimensions</h2>
+        <p>Each slot has three important size measurements:</p>
+        <div class="size-diagram">
+            <pre>
+┌─────────────────────────────────────────┐
+│             SEAL RING (26µm)            │
+│  ┌───────────────────────────────────┐  │
+│  │           IO RING                 │  │
+│  │  ┌─────────────────────────────┐  │  │
+│  │  │                             │  │  │
+│  │  │        CORE AREA            │  │  │
+│  │  │    (Your Design Area)       │  │  │
+│  │  │                             │  │  │
+│  │  └─────────────────────────────┘  │  │
+│  │                                   │  │
+│  └───────────────────────────────────┘  │
+│                                         │
+└─────────────────────────────────────────┘
+ ◄─────────── DIE SIZE ──────────────────►
+   ◄──────── SLOT SIZE ────────────────►
+      ◄────── CORE SIZE ───────────►
+            </pre>
+        </div>
+        <dl class="size-definitions">
+            <dt>Die Size</dt>
+            <dd>The actual physical silicon dimensions. This is the total area of the chip including all peripheral structures.</dd>
+            <dt>Slot Size</dt>
+            <dd>The die size minus the seal ring (26µm on each edge). The seal ring protects the chip from damage during dicing and provides a moisture barrier. This is the area available inside the seal ring.</dd>
+            <dt>Core Area</dt>
+            <dd>The usable design area inside the IO ring. This is where your digital logic, analog circuits, and other design elements are placed. The IO ring contains the pad cells that connect your design to the outside world.</dd>
+        </dl>
+    </div>
+
+    <div class="section">
         <h2>Available Slots</h2>
         <div class="slots-grid">
 """
@@ -545,10 +683,13 @@ def generate_html(
 
         html += f"""            <div class="slot-card">
                 <h3>{slot.label}</h3>
-                <div class="dims">{slot.die_width_mm:.2f}mm × {slot.die_height_mm:.2f}mm</div>
                 {img_html}
                 <dl class="specs">
-                    <dt>Usable Area</dt>
+                    <dt>Die Size</dt>
+                    <dd>{slot.die_width_mm:.2f}mm × {slot.die_height_mm:.2f}mm ({slot.die_area_mm2:.2f}mm²)</dd>
+                    <dt>Slot Size</dt>
+                    <dd>{slot.slot_width_mm:.2f}mm × {slot.slot_height_mm:.2f}mm ({slot.slot_area_mm2:.2f}mm²)</dd>
+                    <dt>Core Area</dt>
                     <dd>{slot.core_width_mm:.2f}mm × {slot.core_height_mm:.2f}mm ({slot.core_area_mm2:.2f}mm²)</dd>
                     <dt>IO Overhead</dt>
                     <dd>{slot.io_overhead_pct:.0f}%</dd>
@@ -568,7 +709,8 @@ def generate_html(
                 <tr>
                     <th>Slot</th>
                     <th>Die Size</th>
-                    <th>Usable Area</th>
+                    <th>Slot Size</th>
+                    <th>Core Area</th>
                     <th>IO Overhead</th>
                     <th>Bidir</th>
                     <th>Inputs</th>
@@ -583,8 +725,9 @@ def generate_html(
         slot = slots[name]
         html += f"""                <tr>
                     <td>{slot.label}</td>
-                    <td>{slot.die_width_mm:.2f}mm × {slot.die_height_mm:.2f}mm</td>
-                    <td>{slot.core_width_mm:.2f}mm × {slot.core_height_mm:.2f}mm ({slot.core_area_mm2:.2f}mm²)</td>
+                    <td>{slot.die_width_mm:.2f} × {slot.die_height_mm:.2f}mm<br><small>({slot.die_area_mm2:.2f}mm²)</small></td>
+                    <td>{slot.slot_width_mm:.2f} × {slot.slot_height_mm:.2f}mm<br><small>({slot.slot_area_mm2:.2f}mm²)</small></td>
+                    <td>{slot.core_width_mm:.2f} × {slot.core_height_mm:.2f}mm<br><small>({slot.core_area_mm2:.2f}mm²)</small></td>
                     <td>{slot.io_overhead_pct:.0f}%</td>
                     <td>{slot.io_bidir}</td>
                     <td>{slot.io_inputs}</td>
