@@ -12,6 +12,7 @@ Usage:
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -149,7 +150,8 @@ def validate_geometry(slots: dict[str, SlotInfo], pad_sizes: dict[str, tuple[flo
     return warnings
 
 
-REPO = "wafer-space/gf180mcu-project-template"
+# Use GITHUB_REPOSITORY env var when running in GitHub Actions, fallback to upstream
+REPO = os.environ.get("GITHUB_REPOSITORY", "wafer-space/gf180mcu-project-template")
 IMAGE_ARTIFACT_SUFFIX = "_image"
 THUMBNAIL_WIDTH = 400
 JPEG_QUALITY = 85
