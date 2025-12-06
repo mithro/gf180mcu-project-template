@@ -31,6 +31,11 @@ def get_slot_dimensions(slots_dir: Path) -> dict[str, tuple[int, int]]:
         width_um = die_area[2] - die_area[0]
         height_um = die_area[3] - die_area[1]
         dimensions[slot_name] = (width_um, height_um)
+
+    # Map 'default' to '1x1' for forks that use default slot naming
+    if "1x1" in dimensions and "default" not in dimensions:
+        dimensions["default"] = dimensions["1x1"]
+
     return dimensions
 
 
