@@ -404,9 +404,6 @@ def generate_html(
     slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5"]
     sorted_names = sorted(slots.keys(), key=lambda x: slot_order.index(x) if x in slot_order else 99)
 
-    # Base width for 1x1 slot cards (in pixels)
-    base_width = 280
-
     # Check which images exist
     def get_image_path(name: str, variant: str) -> str | None:
         if images_dir is None:
@@ -446,28 +443,36 @@ def generate_html(
         }}
         .section h2 {{ margin: 0 0 20px 0; text-align: center; }}
         .slots-grid {{
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
             gap: 20px;
-            justify-content: center;
+            max-width: 1100px;
+            margin: 0 auto;
+        }}
+        @media (max-width: 900px) {{
+            .slots-grid {{ grid-template-columns: repeat(2, 1fr); }}
+        }}
+        @media (max-width: 500px) {{
+            .slots-grid {{ grid-template-columns: 1fr; }}
         }}
         .slot-card {{
             background: #fafafa;
             border: 1px solid #e0e0e0;
             border-radius: 8px;
-            padding: 15px;
-            text-align: center;
+            padding: 20px;
         }}
-        .slot-card h3 {{ margin: 0 0 10px 0; font-size: 1.1em; }}
-        .slot-card .dims {{ font-size: 0.85em; color: #666; margin-bottom: 10px; }}
-        .slot-card .specs {{ font-size: 0.8em; text-align: left; }}
-        .slot-card .specs dt {{ font-weight: bold; color: #555; }}
-        .slot-card .specs dd {{ margin: 0 0 8px 0; }}
+        .slot-card h3 {{ margin: 0 0 8px 0; font-size: 1.15em; text-align: center; }}
+        .slot-card .dims {{ font-size: 0.9em; color: #666; margin-bottom: 15px; text-align: center; white-space: nowrap; }}
+        .slot-card .specs {{ font-size: 0.85em; }}
+        .slot-card .specs dt {{ font-weight: bold; color: #444; margin-top: 12px; }}
+        .slot-card .specs dd {{ margin: 3px 0 0 0; color: #555; }}
         .slot-card img {{
             display: block;
-            margin: 10px auto;
+            margin: 15px auto;
             border-radius: 4px;
             cursor: pointer;
+            max-width: 100%;
+            height: auto;
         }}
         .slot-card img:hover {{ opacity: 0.9; }}
         table {{
@@ -530,23 +535,14 @@ def generate_html(
 
     for name in sorted_names:
         slot = slots[name]
-        # Scale card width based on slot dimensions
-        scale = 1.0
-        if "0p5" in name and "x0p5" not in name:
-            scale = 0.5 if name.startswith("0p5") else 1.0
-        elif name == "0p5x0p5":
-            scale = 0.5
-
-        card_width = int(base_width * scale)
-        img_width = int(200 * scale)
 
         img_html = ""
         img_path = get_image_path(name, "white")
         if img_path:
             full_img = f"images/{name}_white.png"
-            img_html = f'<img src="{img_path}" alt="{slot.label}" width="{img_width}" onclick="openModal(\'{full_img}\')">'
+            img_html = f'<img src="{img_path}" alt="{slot.label}" onclick="openModal(\'{full_img}\')">'
 
-        html += f"""            <div class="slot-card" style="width: {card_width}px;">
+        html += f"""            <div class="slot-card">
                 <h3>{slot.label}</h3>
                 <div class="dims">{slot.die_width_mm:.2f}mm × {slot.die_height_mm:.2f}mm</div>
                 {img_html}
