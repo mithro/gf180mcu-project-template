@@ -15,6 +15,7 @@ on:
     paths:
       - ".github/workflows/slot-docs.yml"
       - "scripts/generate_slot_docs.py"
+      - "scripts/create_thumbnail.py"
 
 # Sets permissions for GitHub Pages deployment
 permissions:
@@ -98,17 +99,8 @@ jobs:
               # Copy full image
               cp "$PNG" "_site/images/${SLOT_NAME}_${VARIANT}.png"
 
-              # Create thumbnail using Python/Pillow
-              uv run python -c "
-from PIL import Image
-img = Image.open('$PNG')
-if img.mode in ('RGBA', 'P'):
-    img = img.convert('RGB')
-w, h = img.size
-if w > 400:
-    img = img.resize((400, int(h * 400 / w)), Image.Resampling.LANCZOS)
-img.save('_site/thumbnails/${SLOT_NAME}_${VARIANT}.jpg', 'JPEG', quality=85)
-"
+              # Create thumbnail using helper script
+              uv run scripts/create_thumbnail.py "$PNG" "_site/thumbnails/${SLOT_NAME}_${VARIANT}.jpg"
             done
 
             rm -rf _tmp_artifact
