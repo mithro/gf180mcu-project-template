@@ -561,23 +561,19 @@ def generate_html(
             line-height: 1.5;
         }}
         .slots-grid {{
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-start;
             gap: 20px;
-            max-width: 1100px;
             margin: 0 auto;
-        }}
-        @media (max-width: 900px) {{
-            .slots-grid {{ grid-template-columns: repeat(2, 1fr); }}
-        }}
-        @media (max-width: 500px) {{
-            .slots-grid {{ grid-template-columns: 1fr; }}
         }}
         .slot-card {{
             background: #fafafa;
             border: 1px solid #e0e0e0;
             border-radius: 8px;
             padding: 20px;
+            flex-shrink: 0;
         }}
         .slot-card h3 {{ margin: 0 0 8px 0; font-size: 1.15em; text-align: center; }}
         .slot-card .dims {{ font-size: 0.9em; color: #666; margin-bottom: 15px; text-align: center; white-space: nowrap; }}
