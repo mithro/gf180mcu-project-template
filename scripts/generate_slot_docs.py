@@ -452,14 +452,14 @@ def generate_markdown(slots: dict[str, SlotInfo], output_path: Path) -> None:
         "",
         "## IO Breakdown",
         "",
-        "| Slot | Bidirectional | Inputs | Analog | Power Pairs | Total IOs | Total Pads |",
-        "|------|---------------|--------|--------|-------------|-----------|------------|",
+        "| Slot | Bidirectional | Inputs | Analog | Total IOs | Power Pairs | Total Pads |",
+        "|------|---------------|--------|--------|-----------|-------------|------------|",
     ])
 
     for name in sorted_names:
         slot = slots[name]
         lines.append(
-            f"| {slot.label} | {slot.io_bidir} | {slot.io_inputs} | {slot.io_analog} | {slot.io_power_pairs} | {slot.io_signal_total} | {slot.pad_total} |"
+            f"| {slot.label} | {slot.io_bidir} | {slot.io_inputs} | {slot.io_analog} | {slot.io_signal_total} | {slot.io_power_pairs} | {slot.pad_total} |"
         )
 
     lines.extend([
@@ -730,8 +730,8 @@ def generate_html(
                     <th>Bidir</th>
                     <th>Inputs</th>
                     <th>Analog</th>
-                    <th>Power</th>
                     <th>Total IOs</th>
+                    <th>Power</th>
                     <th>Total Pads</th>
                 </tr>
             </thead>
@@ -749,8 +749,8 @@ def generate_html(
                     <td>{slot.io_bidir}</td>
                     <td>{slot.io_inputs}</td>
                     <td>{slot.io_analog}</td>
-                    <td>{slot.io_power_pairs} pairs</td>
                     <td>{slot.io_signal_total}</td>
+                    <td>{slot.io_power_pairs} pairs</td>
                     <td>{slot.pad_total}</td>
                 </tr>
 """
