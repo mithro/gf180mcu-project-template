@@ -61,7 +61,11 @@ module gf180mcu_ic_1x1_sram_u8b24k_top (
         .PAD(clk_pad),
         .PU(1'b0),
         .PD(1'b0),
-        .Y(clk_core)
+        .Y(clk_core),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
 
     // Reset input pad
@@ -69,7 +73,11 @@ module gf180mcu_ic_1x1_sram_u8b24k_top (
         .PAD(rst_n_pad),
         .PU(1'b1),
         .PD(1'b0),
-        .Y(rst_n_core)
+        .Y(rst_n_core),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
 
     // Chip enable input pad
@@ -77,7 +85,11 @@ module gf180mcu_ic_1x1_sram_u8b24k_top (
         .PAD(ce_n_pad),
         .PU(1'b1),
         .PD(1'b0),
-        .Y(ce_n_core)
+        .Y(ce_n_core),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
 
     // Write enable input pad
@@ -85,7 +97,11 @@ module gf180mcu_ic_1x1_sram_u8b24k_top (
         .PAD(we_n_pad),
         .PU(1'b1),
         .PD(1'b0),
-        .Y(we_n_core)
+        .Y(we_n_core),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
 
     // Address input pads
@@ -93,91 +109,151 @@ module gf180mcu_ic_1x1_sram_u8b24k_top (
         .PAD(addr_pad_0),
         .PU(1'b0),
         .PD(1'b1),
-        .Y(addr_core[0])
+        .Y(addr_core[0]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__in_s addr_pad_1_inst (
         .PAD(addr_pad_1),
         .PU(1'b0),
         .PD(1'b1),
-        .Y(addr_core[1])
+        .Y(addr_core[1]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__in_s addr_pad_2_inst (
         .PAD(addr_pad_2),
         .PU(1'b0),
         .PD(1'b1),
-        .Y(addr_core[2])
+        .Y(addr_core[2]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__in_s addr_pad_3_inst (
         .PAD(addr_pad_3),
         .PU(1'b0),
         .PD(1'b1),
-        .Y(addr_core[3])
+        .Y(addr_core[3]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__in_s addr_pad_4_inst (
         .PAD(addr_pad_4),
         .PU(1'b0),
         .PD(1'b1),
-        .Y(addr_core[4])
+        .Y(addr_core[4]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__in_s addr_pad_5_inst (
         .PAD(addr_pad_5),
         .PU(1'b0),
         .PD(1'b1),
-        .Y(addr_core[5])
+        .Y(addr_core[5]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__in_s addr_pad_6_inst (
         .PAD(addr_pad_6),
         .PU(1'b0),
         .PD(1'b1),
-        .Y(addr_core[6])
+        .Y(addr_core[6]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__in_s addr_pad_7_inst (
         .PAD(addr_pad_7),
         .PU(1'b0),
         .PD(1'b1),
-        .Y(addr_core[7])
+        .Y(addr_core[7]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__in_s addr_pad_8_inst (
         .PAD(addr_pad_8),
         .PU(1'b0),
         .PD(1'b1),
-        .Y(addr_core[8])
+        .Y(addr_core[8]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__in_s addr_pad_9_inst (
         .PAD(addr_pad_9),
         .PU(1'b0),
         .PD(1'b1),
-        .Y(addr_core[9])
+        .Y(addr_core[9]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__in_s addr_pad_10_inst (
         .PAD(addr_pad_10),
         .PU(1'b0),
         .PD(1'b1),
-        .Y(addr_core[10])
+        .Y(addr_core[10]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__in_s addr_pad_11_inst (
         .PAD(addr_pad_11),
         .PU(1'b0),
         .PD(1'b1),
-        .Y(addr_core[11])
+        .Y(addr_core[11]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__in_s addr_pad_12_inst (
         .PAD(addr_pad_12),
         .PU(1'b0),
         .PD(1'b1),
-        .Y(addr_core[12])
+        .Y(addr_core[12]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__in_s addr_pad_13_inst (
         .PAD(addr_pad_13),
         .PU(1'b0),
         .PD(1'b1),
-        .Y(addr_core[13])
+        .Y(addr_core[13]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__in_s addr_pad_14_inst (
         .PAD(addr_pad_14),
         .PU(1'b0),
         .PD(1'b1),
-        .Y(addr_core[14])
+        .Y(addr_core[14]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
 
     // Data bidirectional pads
@@ -191,7 +267,11 @@ module gf180mcu_ic_1x1_sram_u8b24k_top (
         .SL(1'b0),
         .IE(1'b1),
         .OE(!we_n_core && !ce_n_core),
-        .Y(din_core[0])
+        .Y(din_core[0]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__bi_t data_pad_1_inst (
         .PAD(data_pad_1),
@@ -203,7 +283,11 @@ module gf180mcu_ic_1x1_sram_u8b24k_top (
         .SL(1'b0),
         .IE(1'b1),
         .OE(!we_n_core && !ce_n_core),
-        .Y(din_core[1])
+        .Y(din_core[1]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__bi_t data_pad_2_inst (
         .PAD(data_pad_2),
@@ -215,7 +299,11 @@ module gf180mcu_ic_1x1_sram_u8b24k_top (
         .SL(1'b0),
         .IE(1'b1),
         .OE(!we_n_core && !ce_n_core),
-        .Y(din_core[2])
+        .Y(din_core[2]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__bi_t data_pad_3_inst (
         .PAD(data_pad_3),
@@ -227,7 +315,11 @@ module gf180mcu_ic_1x1_sram_u8b24k_top (
         .SL(1'b0),
         .IE(1'b1),
         .OE(!we_n_core && !ce_n_core),
-        .Y(din_core[3])
+        .Y(din_core[3]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__bi_t data_pad_4_inst (
         .PAD(data_pad_4),
@@ -239,7 +331,11 @@ module gf180mcu_ic_1x1_sram_u8b24k_top (
         .SL(1'b0),
         .IE(1'b1),
         .OE(!we_n_core && !ce_n_core),
-        .Y(din_core[4])
+        .Y(din_core[4]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__bi_t data_pad_5_inst (
         .PAD(data_pad_5),
@@ -251,7 +347,11 @@ module gf180mcu_ic_1x1_sram_u8b24k_top (
         .SL(1'b0),
         .IE(1'b1),
         .OE(!we_n_core && !ce_n_core),
-        .Y(din_core[5])
+        .Y(din_core[5]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__bi_t data_pad_6_inst (
         .PAD(data_pad_6),
@@ -263,7 +363,11 @@ module gf180mcu_ic_1x1_sram_u8b24k_top (
         .SL(1'b0),
         .IE(1'b1),
         .OE(!we_n_core && !ce_n_core),
-        .Y(din_core[6])
+        .Y(din_core[6]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
     gf180mcu_fd_io__bi_t data_pad_7_inst (
         .PAD(data_pad_7),
@@ -275,7 +379,11 @@ module gf180mcu_ic_1x1_sram_u8b24k_top (
         .SL(1'b0),
         .IE(1'b1),
         .OE(!we_n_core && !ce_n_core),
-        .Y(din_core[7])
+        .Y(din_core[7]),
+        .DVDD(VDD),
+        .DVSS(VSS),
+        .VDD(VDD),
+        .VSS(VSS)
     );
 
 
