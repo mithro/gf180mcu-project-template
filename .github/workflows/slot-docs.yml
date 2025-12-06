@@ -1,15 +1,20 @@
 name: Slot Documentation
 
 on:
-  # Run after CI completes on main branch
+  # Run after CI completes on any branch
   workflow_run:
     workflows: ["CI"]
     types:
       - completed
-    branches:
-      - main
-  # Manual trigger
+  # Manual trigger from any branch
   workflow_dispatch:
+  # Also run on push to allow testing the workflow itself
+  push:
+    branches:
+      - "**"
+    paths:
+      - ".github/workflows/slot-docs.yml"
+      - "scripts/generate_slot_docs.py"
 
 # Sets permissions for GitHub Pages deployment
 permissions:
@@ -48,9 +53,16 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
             RUN_ID="${{ github.event.workflow_run.id }}"
           else
-            # For manual trigger, get latest successful CI run
-            RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=main&status=success&per_page=10" \
+            # For manual/push trigger, try current branch first, then main
+            BRANCH="${{ github.ref_name }}"
+            RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=${BRANCH}&status=success&per_page=10" \
               -q '.workflow_runs[] | select(.name == "CI") | .id' | head -1)
+
+            # Fallback to main if no runs on current branch
+            if [ -z "$RUN_ID" ]; then
+              RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=main&status=success&per_page=10" \
+                -q '.workflow_runs[] | select(.name == "CI") | .id' | head -1)
+            fi
           fi
 
           if [ -z "$RUN_ID" ]; then
