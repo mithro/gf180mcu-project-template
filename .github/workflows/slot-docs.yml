@@ -16,6 +16,7 @@ on:
       - ".github/workflows/slot-docs.yml"
       - "scripts/generate_slot_docs.py"
       - "scripts/create_thumbnail.py"
+      - "scripts/normalize_images.py"
 
 # Sets permissions for GitHub Pages deployment
 permissions:
@@ -84,7 +85,7 @@ jobs:
             # Download and extract artifact
             gh run download "$RUN_ID" -n "$ARTIFACT" -D _tmp_artifact
 
-            # Process images (create thumbnails using Python/Pillow)
+            # Copy images with proper naming
             for PNG in _tmp_artifact/*.png; do
               [ -f "$PNG" ] || continue
               BASENAME=$(basename "$PNG")
@@ -96,14 +97,28 @@ jobs:
                 VARIANT="white"
               fi
 
-              # Copy full image
               cp "$PNG" "_site/images/${SLOT_NAME}_${VARIANT}.png"
-
-              # Create thumbnail using helper script
-              uv run scripts/create_thumbnail.py "$PNG" "_site/thumbnails/${SLOT_NAME}_${VARIANT}.jpg"
             done
 
             rm -rf _tmp_artifact
+          done
+
+      - name: Normalize images to consistent scale
+        run: |
+          # Normalize all images to the same pixel/mm scale
+          if ls _site/images/*.png 1>/dev/null 2>&1; then
+            uv run scripts/normalize_images.py _site/images librelane/slots
+          else
+            echo "No images to normalize"
+          fi
+
+      - name: Create thumbnails
+        run: |
+          # Create thumbnails from normalized images
+          for PNG in _site/images/*.png; do
+            [ -f "$PNG" ] || continue
+            BASENAME=$(basename "$PNG" .png)
+            uv run scripts/create_thumbnail.py "$PNG" "_site/thumbnails/${BASENAME}.jpg"
           done
 
       - name: Regenerate HTML with images
