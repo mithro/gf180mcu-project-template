@@ -77,10 +77,11 @@ class SlotInfo:
         return self.core_width_mm * self.core_height_mm
 
     @property
-    def utilization_pct(self) -> float:
+    def io_overhead_pct(self) -> float:
+        """Percentage of die area used by IO ring, seal ring, etc."""
         if self.die_area_mm2 == 0:
             return 0.0
-        return (self.core_area_mm2 / self.die_area_mm2) * 100
+        return ((self.die_area_mm2 - self.core_area_mm2) / self.die_area_mm2) * 100
 
     @property
     def io_total(self) -> int:
@@ -320,7 +321,7 @@ def generate_json(slots: dict[str, SlotInfo], output_path: Path) -> None:
                 "height_mm": round(slot.core_height_mm, 3),
                 "area_mm2": round(slot.core_area_mm2, 2),
             },
-            "utilization_pct": round(slot.utilization_pct, 1),
+            "io_overhead_pct": round(slot.io_overhead_pct, 1),
             "io": {
                 "bidir": slot.io_bidir,
                 "inputs": slot.io_inputs,
@@ -346,7 +347,7 @@ def generate_markdown(slots: dict[str, SlotInfo], output_path: Path) -> None:
         "",
         "## Slot Dimensions",
         "",
-        "| Slot | Die Size | Usable Area | Utilization | Total IOs |",
+        "| Slot | Die Size | Usable Area | IO Overhead | Total IOs |",
         "|------|----------|-------------|-------------|-----------|",
     ]
 
@@ -357,9 +358,9 @@ def generate_markdown(slots: dict[str, SlotInfo], output_path: Path) -> None:
         slot = slots[name]
         die_size = f"{slot.die_width_mm:.2f}mm × {slot.die_height_mm:.2f}mm"
         core_size = f"{slot.core_width_mm:.2f}mm × {slot.core_height_mm:.2f}mm ({slot.core_area_mm2:.2f}mm²)"
-        util = f"{slot.utilization_pct:.0f}%"
+        overhead = f"{slot.io_overhead_pct:.0f}%"
         ios = str(slot.io_total)
-        lines.append(f"| {slot.label} | {die_size} | {core_size} | {util} | {ios} |")
+        lines.append(f"| {slot.label} | {die_size} | {core_size} | {overhead} | {ios} |")
 
     lines.extend([
         "",
@@ -549,8 +550,8 @@ def generate_html(
                 <dl class="specs">
                     <dt>Usable Area</dt>
                     <dd>{slot.core_width_mm:.2f}mm × {slot.core_height_mm:.2f}mm ({slot.core_area_mm2:.2f}mm²)</dd>
-                    <dt>Utilization</dt>
-                    <dd>{slot.utilization_pct:.0f}%</dd>
+                    <dt>IO Overhead</dt>
+                    <dd>{slot.io_overhead_pct:.0f}%</dd>
                     <dt>Total IOs</dt>
                     <dd>{slot.io_total} (bidir: {slot.io_bidir}, in: {slot.io_inputs}, analog: {slot.io_analog})</dd>
                 </dl>
@@ -568,7 +569,7 @@ def generate_html(
                     <th>Slot</th>
                     <th>Die Size</th>
                     <th>Usable Area</th>
-                    <th>Utilization</th>
+                    <th>IO Overhead</th>
                     <th>Bidir</th>
                     <th>Inputs</th>
                     <th>Analog</th>
@@ -584,7 +585,7 @@ def generate_html(
                     <td>{slot.label}</td>
                     <td>{slot.die_width_mm:.2f}mm × {slot.die_height_mm:.2f}mm</td>
                     <td>{slot.core_width_mm:.2f}mm × {slot.core_height_mm:.2f}mm ({slot.core_area_mm2:.2f}mm²)</td>
-                    <td>{slot.utilization_pct:.0f}%</td>
+                    <td>{slot.io_overhead_pct:.0f}%</td>
                     <td>{slot.io_bidir}</td>
                     <td>{slot.io_inputs}</td>
                     <td>{slot.io_analog}</td>
