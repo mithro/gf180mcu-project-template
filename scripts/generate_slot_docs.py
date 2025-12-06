@@ -122,8 +122,19 @@ class SlotInfo:
         return self.slot_area_mm2 - self.core_area_mm2
 
     @property
-    def io_total(self) -> int:
-        return self.io_bidir + self.io_inputs + self.io_analog + (self.io_power_pairs * 2)
+    def io_signal_total(self) -> int:
+        """Total signal IO pins (bidir + inputs + analog)."""
+        return self.io_bidir + self.io_inputs + self.io_analog
+
+    @property
+    def io_power_total(self) -> int:
+        """Total power pads (DVDD + DVSS)."""
+        return self.io_power_pairs * 2
+
+    @property
+    def pad_total(self) -> int:
+        """Total number of pads (signal IOs + power pads)."""
+        return self.io_signal_total + self.io_power_total
 
 
 # Slot labels mapping
@@ -372,7 +383,9 @@ def generate_json(slots: dict[str, SlotInfo], output_path: Path) -> None:
                 "inputs": slot.io_inputs,
                 "analog": slot.io_analog,
                 "power_pairs": slot.io_power_pairs,
-                "total": slot.io_total,
+                "power_total": slot.io_power_total,
+                "signal_total": slot.io_signal_total,
+                "pad_total": slot.pad_total,
             },
         }
 
@@ -439,14 +452,14 @@ def generate_markdown(slots: dict[str, SlotInfo], output_path: Path) -> None:
         "",
         "## IO Breakdown",
         "",
-        "| Slot | Bidirectional | Inputs | Analog | Power Pairs | Total |",
-        "|------|---------------|--------|--------|-------------|-------|",
+        "| Slot | Bidirectional | Inputs | Analog | Power Pairs | Total IOs | Total Pads |",
+        "|------|---------------|--------|--------|-------------|-----------|------------|",
     ])
 
     for name in sorted_names:
         slot = slots[name]
         lines.append(
-            f"| {slot.label} | {slot.io_bidir} | {slot.io_inputs} | {slot.io_analog} | {slot.io_power_pairs} | {slot.io_total} |"
+            f"| {slot.label} | {slot.io_bidir} | {slot.io_inputs} | {slot.io_analog} | {slot.io_power_pairs} | {slot.io_signal_total} | {slot.pad_total} |"
         )
 
     lines.extend([
@@ -694,7 +707,9 @@ def generate_html(
                     <dt>IO Overhead</dt>
                     <dd>{slot.io_overhead_pct:.0f}%</dd>
                     <dt>Total IOs</dt>
-                    <dd>{slot.io_total} (bidir: {slot.io_bidir}, in: {slot.io_inputs}, analog: {slot.io_analog})</dd>
+                    <dd>{slot.io_signal_total} (bidir: {slot.io_bidir}, in: {slot.io_inputs}, analog: {slot.io_analog})</dd>
+                    <dt>Total Pads</dt>
+                    <dd>{slot.pad_total} ({slot.io_signal_total} IO + {slot.io_power_total} power)</dd>
                 </dl>
             </div>
 """
@@ -716,6 +731,8 @@ def generate_html(
                     <th>Inputs</th>
                     <th>Analog</th>
                     <th>Power</th>
+                    <th>Total IOs</th>
+                    <th>Total Pads</th>
                 </tr>
             </thead>
             <tbody>
@@ -733,6 +750,8 @@ def generate_html(
                     <td>{slot.io_inputs}</td>
                     <td>{slot.io_analog}</td>
                     <td>{slot.io_power_pairs} pairs</td>
+                    <td>{slot.io_signal_total}</td>
+                    <td>{slot.pad_total}</td>
                 </tr>
 """
 
