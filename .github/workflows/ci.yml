@@ -33,9 +33,8 @@ jobs:
     steps:
       - name: Define the Matrix
         id: export-slots
-        if: 
         run: |
-          if ${{ github.repository == 'wafer-space/gf180mcu-project-template' }}; then
+          if ${{ github.repository == 'wafer-space/gf180mcu-project-template' || github.repository == 'mithro/gf180mcu-project-template' }}; then
             echo "slots=['1x1', '0p5x1', '1x0p5', '0p5x0p5']" >> $GITHUB_OUTPUT
           else
             echo "slots=['default']" >> $GITHUB_OUTPUT
