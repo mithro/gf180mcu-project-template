@@ -7,7 +7,7 @@ with various pad density and edge arrangements.
 Naming scheme: <slotsize>_<density>_<edges>
 
 Density codes (3 chars):
-  - def: Default/reference configuration (matches existing slot configs)
+  - def: Default/reference configuration (copies existing slot configs)
   - max: Maximum pads possible for this slot
   - spc: Match 1x1 pad spacing/layout
   - num: Match 1x1 pad count
@@ -20,12 +20,15 @@ Edge codes (3 chars):
   - ver: Vertical edges (left + right)
   - nwc: Northwest corner (top + left)
   - sec: Southeast corner (bottom + right)
+
+Note: DEF density is only valid with ALL edges (copies the original slot configs).
 """
 # /// script
 # requires-python = ">=3.11"
 # dependencies = ["pyyaml"]
 # ///
 
+import shutil
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -521,6 +524,34 @@ def generate_config_yaml(
 # Main
 # =============================================================================
 
+def copy_default_config(slot_name: str, output_dir: Path) -> Path:
+    """Copy the original slot config file as the def_all variant.
+
+    Args:
+        slot_name: Name of the slot (e.g., "1x1", "0p5x0p5")
+        output_dir: Directory to write the copied file
+
+    Returns:
+        Path to the copied file
+    """
+    slots_dir = output_dir.parent
+    source = slots_dir / f"slot_{slot_name}.yaml"
+    dest = output_dir / f"slot_{slot_name}_def_all.yaml"
+
+    # Copy and prepend a comment explaining this is a copy
+    with open(source, "r") as f:
+        content = f.read()
+
+    with open(dest, "w") as f:
+        f.write(f"# Default density, All four edges\n")
+        f.write(f"# Copied from slot_{slot_name}.yaml (the original default configuration)\n")
+        f.write(f"# Slot: {slot_name}, Density: def, Edges: all\n")
+        f.write(f"#\n")
+        f.write(content)
+
+    return dest
+
+
 def main() -> None:
     """Generate all slot configuration variants."""
     script_dir = Path(__file__).parent
@@ -547,6 +578,18 @@ def main() -> None:
                 # - spc (1x1 spacing) is meaningless for 1x1 itself
                 # - num (1x1 count) is equivalent to def for 1x1
                 if slot_name == "1x1" and density in (Density.SPC, Density.NUM):
+                    continue
+
+                # DEF density is only valid with ALL edges
+                # (it copies the original config which uses all edges)
+                if density == Density.DEF and edges != Edges.ALL:
+                    continue
+
+                # For DEF + ALL, copy the original config file
+                if density == Density.DEF and edges == Edges.ALL:
+                    output_path = copy_default_config(slot_name, output_dir)
+                    generated_files.append(output_path)
+                    print(f"  - {density.value}_{edges.value}: (copied original) -> {output_path.name}")
                     continue
 
                 total, _ = calculate_pads_for_density(slot, density, edges)
