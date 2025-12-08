@@ -51,11 +51,21 @@ module chip_core #(
 
     logic [NUM_BIDIR_PADS-1:0] count;
 
+    // Count increments when all input bits are set (or always if no inputs)
+    wire count_enable;
+    generate
+        if (NUM_INPUT_PADS > 0) begin : gen_count_enable
+            assign count_enable = &input_in;
+        end else begin : gen_count_enable_default
+            assign count_enable = 1'b1;  // Always count when no inputs
+        end
+    endgenerate
+
     always_ff @(posedge clk) begin
         if (!rst_n) begin
             count <= '0;
         end else begin
-            if (&input_in) begin
+            if (count_enable) begin
                 count <= count + 1;
             end
         end
