@@ -499,12 +499,31 @@ def generate_config_yaml(
     signal_pads, power_pads = distribute_pads_with_power(total_pads, slot.name)
 
     # Distribute signal and power pads across edges proportionally
+    # signal_pads is bidir-only count; total signal positions include clk/rst (+2)
     edge_signal = {}
     edge_power = {}
+
+    # Total signal positions = bidir + 2 for clk/rst
+    total_signal_positions = signal_pads + 2
+    signal_remaining = total_signal_positions
+    power_remaining = power_pads
+
     for e in active_edges:
         ratio = pads_per_edge[e] / total_pads if total_pads > 0 else 0
-        edge_signal[e] = int(signal_pads * ratio)
+        edge_signal[e] = int(total_signal_positions * ratio)
         edge_power[e] = int(power_pads * ratio)
+        signal_remaining -= edge_signal[e]
+        power_remaining -= edge_power[e]
+
+    # Distribute remaining pads lost to integer truncation (prefer larger edges)
+    sorted_edges = sorted(active_edges, key=lambda e: pads_per_edge[e], reverse=True)
+    for e in sorted_edges:
+        if signal_remaining > 0:
+            edge_signal[e] += 1
+            signal_remaining -= 1
+        if power_remaining > 0:
+            edge_power[e] += 1
+            power_remaining -= 1
 
     # Build the YAML structure
     # For max/spc/num configs, add MAX_IO_CONFIG define to use all-bidir RTL

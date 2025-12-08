@@ -24,32 +24,36 @@ PAD_SOUTH: [
     "bidir\\[6\\].pad",
     "bidir\\[7\\].pad",
     "bidir\\[8\\].pad",
-    "bidir\\[9\\].pad"
+    "bidir\\[9\\].pad",
+    "bidir\\[10\\].pad"
 ]
 
 PAD_EAST: [
-    "bidir\\[10\\].pad",
     "bidir\\[11\\].pad",
     "bidir\\[12\\].pad",
     "bidir\\[13\\].pad",
-    "dvss_pads\\[1\\].pad",
     "bidir\\[14\\].pad",
+    "dvss_pads\\[1\\].pad",
     "bidir\\[15\\].pad",
     "bidir\\[16\\].pad",
     "bidir\\[17\\].pad",
-    "dvdd_pads\\[1\\].pad",
     "bidir\\[18\\].pad",
+    "dvdd_pads\\[1\\].pad",
     "bidir\\[19\\].pad",
     "bidir\\[20\\].pad",
     "bidir\\[21\\].pad",
-    "dvss_pads\\[2\\].pad",
     "bidir\\[22\\].pad",
+    "dvss_pads\\[2\\].pad",
     "bidir\\[23\\].pad",
     "bidir\\[24\\].pad",
     "bidir\\[25\\].pad",
     "bidir\\[26\\].pad",
+    "dvdd_pads\\[2\\].pad",
     "bidir\\[27\\].pad",
-    "bidir\\[28\\].pad"
+    "bidir\\[28\\].pad",
+    "bidir\\[29\\].pad",
+    "bidir\\[30\\].pad",
+    "bidir\\[31\\].pad"
 ]
 
 PAD_NORTH: []

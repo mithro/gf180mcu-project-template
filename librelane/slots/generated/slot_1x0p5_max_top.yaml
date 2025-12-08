@@ -17,6 +17,8 @@ PAD_EAST: []
 PAD_NORTH: [
     clk_pad,
     rst_n_pad,
+    "bidir\\[33\\].pad",
+    "bidir\\[32\\].pad",
     "bidir\\[31\\].pad",
     "bidir\\[30\\].pad",
     "bidir\\[29\\].pad",
