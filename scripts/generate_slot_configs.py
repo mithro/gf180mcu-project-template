@@ -62,6 +62,39 @@ DEFAULT_PAD_COUNTS = {
     "0p5x0p5": 56,
 }
 
+# RTL pad limits from src/slot_defines.svh
+# These are set to support maximum physical IO configurations
+RTL_PAD_LIMITS = {
+    "1x1": {
+        "dvdd": 15,
+        "dvss": 15,
+        "input": 0,
+        "bidir": 168,
+        "analog": 0,
+    },
+    "0p5x1": {
+        "dvdd": 11,
+        "dvss": 11,
+        "input": 0,
+        "bidir": 124,
+        "analog": 0,
+    },
+    "1x0p5": {
+        "dvdd": 10,
+        "dvss": 10,
+        "input": 0,
+        "bidir": 110,
+        "analog": 0,
+    },
+    "0p5x0p5": {
+        "dvdd": 6,
+        "dvss": 6,
+        "input": 0,
+        "bidir": 66,
+        "analog": 0,
+    },
+}
+
 
 # =============================================================================
 # Type Definitions
@@ -285,14 +318,43 @@ def calculate_pads_for_density(
     return total, pads_per_edge
 
 
+def get_rtl_signal_limit(slot_name: str) -> int:
+    """Get the maximum number of signal pads the RTL supports.
+
+    This is bidir + 2 (clk + rst_n). We don't count input/analog
+    since our generated configs use bidir for all signal pads.
+    """
+    limits = RTL_PAD_LIMITS[slot_name]
+    return limits["bidir"] + 2  # +2 for clk and rst_n
+
+
+def get_rtl_power_limit(slot_name: str) -> int:
+    """Get the maximum number of power pads the RTL supports."""
+    limits = RTL_PAD_LIMITS[slot_name]
+    return limits["dvdd"] + limits["dvss"]
+
+
+def is_config_valid_for_rtl(slot_name: str, total_signal: int, total_power: int) -> bool:
+    """Check if a configuration is valid for the RTL's pad limits.
+
+    The RTL has fixed pad counts. Generated configs cannot exceed these.
+    """
+    signal_limit = get_rtl_signal_limit(slot_name)
+    power_limit = get_rtl_power_limit(slot_name)
+
+    return total_signal <= signal_limit and total_power <= power_limit
+
+
 def distribute_pads_with_power(
     total_pads: int,
+    slot_name: str,
     power_ratio: float = 0.15,
 ) -> tuple[int, int]:
     """Calculate signal and power pad counts for a given total.
 
     Args:
         total_pads: Total number of pad positions available
+        slot_name: Name of the slot (for RTL limits)
         power_ratio: Target ratio of power pads (default 15%)
 
     Returns:
@@ -307,6 +369,18 @@ def distribute_pads_with_power(
         power_pads += 1
 
     signal_pads = available - power_pads
+
+    # Enforce RTL limits
+    signal_limit = get_rtl_signal_limit(slot_name)
+    power_limit = get_rtl_power_limit(slot_name)
+
+    # Limit signal pads to RTL max (bidir count + 2 for clk/rst)
+    if signal_pads + 2 > signal_limit:
+        signal_pads = signal_limit - 2
+
+    # Limit power pads to RTL max
+    if power_pads > power_limit:
+        power_pads = power_limit
 
     return signal_pads, power_pads
 
@@ -422,7 +496,7 @@ def generate_config_yaml(
     """
     active_edges = edges.active_edges
     total_pads, pads_per_edge = calculate_pads_for_density(slot, density, edges)
-    signal_pads, power_pads = distribute_pads_with_power(total_pads)
+    signal_pads, power_pads = distribute_pads_with_power(total_pads, slot.name)
 
     # Distribute signal and power pads across edges proportionally
     edge_signal = {}
