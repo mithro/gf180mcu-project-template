@@ -1,6 +1,6 @@
 # 1x1 spacing, Top (north) edge only
 # Slot: 0p5x0p5, Density: spc, Edges: top
-# Total pads: 16 (signal: 12, power: 2)
+# Total pads: 15 (signal: 11, power: 2)
 #
 # Floorplanning
 FP_SIZING: absolute
@@ -17,17 +17,16 @@ PAD_EAST: []
 PAD_NORTH: [
     clk_pad,
     rst_n_pad,
-    "bidir\\[11\\].pad",
     "bidir\\[10\\].pad",
     "bidir\\[9\\].pad",
     "bidir\\[8\\].pad",
-    "dvdd_pads\\[0\\].pad",
     "bidir\\[7\\].pad",
     "bidir\\[6\\].pad",
+    "dvdd_pads\\[0\\].pad",
     "bidir\\[5\\].pad",
     "bidir\\[4\\].pad",
-    "dvss_pads\\[0\\].pad",
     "bidir\\[3\\].pad",
+    "dvss_pads\\[0\\].pad",
     "bidir\\[2\\].pad",
     "bidir\\[1\\].pad",
     "bidir\\[0\\].pad"

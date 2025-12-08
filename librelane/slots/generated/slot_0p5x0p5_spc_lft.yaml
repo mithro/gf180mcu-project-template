@@ -1,6 +1,6 @@
 # 1x1 spacing, Left (west) edge only
 # Slot: 0p5x0p5, Density: spc, Edges: lft
-# Total pads: 24 (signal: 18, power: 4)
+# Total pads: 23 (signal: 17, power: 4)
 #
 # Floorplanning
 FP_SIZING: absolute
@@ -19,7 +19,6 @@ PAD_NORTH: []
 PAD_WEST: [
     clk_pad,
     rst_n_pad,
-    "bidir\\[17\\].pad",
     "bidir\\[16\\].pad",
     "bidir\\[15\\].pad",
     "bidir\\[14\\].pad",

@@ -64,6 +64,11 @@ DEFAULT_PAD_COUNTS = {
 
 # RTL pad limits when MAX_IO_CONFIG is defined (used by generated configs)
 # DEF configs use original files and don't go through this validation
+# These are calculated from physical limits accounting for seal ring:
+#   1x1:     N/S=42, E/W=58, Total=200, Signal~170, Power~30
+#   0p5x1:   N/S=15, E/W=58, Total=146, Signal~124, Power~22
+#   1x0p5:   N/S=42, E/W=23, Total=130, Signal~110, Power~20
+#   0p5x0p5: N/S=15, E/W=23, Total=76,  Signal~64,  Power~12
 RTL_PAD_LIMITS = {
     "1x1": {
         "dvdd": 15,
@@ -76,21 +81,21 @@ RTL_PAD_LIMITS = {
         "dvdd": 11,
         "dvss": 11,
         "input": 0,
-        "bidir": 124,
+        "bidir": 122,
         "analog": 0,
     },
     "1x0p5": {
         "dvdd": 10,
         "dvss": 10,
         "input": 0,
-        "bidir": 110,
+        "bidir": 108,
         "analog": 0,
     },
     "0p5x0p5": {
         "dvdd": 6,
         "dvss": 6,
         "input": 0,
-        "bidir": 66,
+        "bidir": 62,
         "analog": 0,
     },
 }
@@ -217,13 +222,15 @@ SLOTS = {
 def calculate_max_pads_per_edge(slot: SlotDefinition) -> dict[str, int]:
     """Calculate maximum number of pads that can fit on each edge.
 
-    North/South edges: (die_width - 2*corner) / io_width
-    East/West edges: (die_height - 2*corner) / io_width
+    North/South edges: (die_width - 2*corner - 2*seal_ring) / io_width
+    East/West edges: (die_height - 2*corner - 2*seal_ring) / io_width
 
     Note: IO cells are placed with their 75um side along the edge.
+    The seal ring (26um on each end) must be subtracted to match
+    OpenROAD's padring generator constraints.
     """
-    ns_available = slot.die_width - 2 * CORNER_CELL_SIZE
-    ew_available = slot.die_height - 2 * CORNER_CELL_SIZE
+    ns_available = slot.die_width - 2 * CORNER_CELL_SIZE - 2 * SEAL_RING
+    ew_available = slot.die_height - 2 * CORNER_CELL_SIZE - 2 * SEAL_RING
 
     return {
         "north": int(ns_available / IO_CELL_WIDTH),
@@ -428,6 +435,9 @@ def generate_edge_pads(
         bidir_idx = bidir_start
         vdd_idx = vdd_start
         vss_idx = vss_start
+
+        # Use global power count for alternation (continues across edges)
+        global_power_idx = vdd_start + vss_start
         power_placed = 0
         signal_placed = 0
 
@@ -438,14 +448,15 @@ def generate_edge_pads(
                 bidir_idx += 1
                 signal_placed += 1
 
-            # Place a power pad pair if we have more
+            # Place a power pad - alternate DVSS/DVDD using global counter
             if power_placed < power_count:
-                if power_placed % 2 == 0:
+                if global_power_idx % 2 == 0:
                     pads.append(f'dvss_pads\\\\[{vss_idx}\\\\].pad')
                     vss_idx += 1
                 else:
                     pads.append(f'dvdd_pads\\\\[{vdd_idx}\\\\].pad')
                     vdd_idx += 1
+                global_power_idx += 1
                 power_placed += 1
 
         # Place remaining signals
@@ -498,32 +509,62 @@ def generate_config_yaml(
     total_pads, pads_per_edge = calculate_pads_for_density(slot, density, edges)
     signal_pads, power_pads = distribute_pads_with_power(total_pads, slot.name)
 
-    # Distribute signal and power pads across edges proportionally
+    # Distribute signal and power pads across edges
     # signal_pads is bidir-only count; total signal positions include clk/rst (+2)
     edge_signal = {}
     edge_power = {}
 
     # Total signal positions = bidir + 2 for clk/rst
     total_signal_positions = signal_pads + 2
+    total_to_distribute = total_signal_positions + power_pads
+
+    # We must respect both:
+    # 1. Per-edge physical limits (pads_per_edge[e])
+    # 2. Global RTL limits (total_signal_positions and power_pads)
+
     signal_remaining = total_signal_positions
     power_remaining = power_pads
 
-    for e in active_edges:
-        ratio = pads_per_edge[e] / total_pads if total_pads > 0 else 0
-        edge_signal[e] = int(total_signal_positions * ratio)
-        edge_power[e] = int(power_pads * ratio)
-        signal_remaining -= edge_signal[e]
-        power_remaining -= edge_power[e]
-
-    # Distribute remaining pads lost to integer truncation (prefer larger edges)
+    # Sort edges by size (larger edges first) for more even distribution
     sorted_edges = sorted(active_edges, key=lambda e: pads_per_edge[e], reverse=True)
+
+    # First pass: distribute based on ratio, respecting per-edge limits
+    for e in active_edges:
+        edge_capacity = pads_per_edge[e]
+
+        # Calculate this edge's share based on its proportion of total capacity
+        ratio = edge_capacity / total_pads if total_pads > 0 else 0
+
+        # Calculate signal and power for this edge
+        # Use floor division to not over-allocate
+        edge_sig = min(int(total_signal_positions * ratio), signal_remaining, edge_capacity)
+        remaining_capacity = edge_capacity - edge_sig
+        edge_pow = min(int(power_pads * ratio), power_remaining, remaining_capacity)
+
+        edge_signal[e] = edge_sig
+        edge_power[e] = edge_pow
+        signal_remaining -= edge_sig
+        power_remaining -= edge_pow
+
+    # Second pass: distribute remaining signal pads (from integer truncation)
     for e in sorted_edges:
-        if signal_remaining > 0:
-            edge_signal[e] += 1
-            signal_remaining -= 1
-        if power_remaining > 0:
-            edge_power[e] += 1
-            power_remaining -= 1
+        if signal_remaining <= 0:
+            break
+        available = pads_per_edge[e] - edge_signal[e] - edge_power[e]
+        if available > 0:
+            add = min(signal_remaining, available)
+            edge_signal[e] += add
+            signal_remaining -= add
+
+    # Third pass: distribute remaining power pads
+    for e in sorted_edges:
+        if power_remaining <= 0:
+            break
+        available = pads_per_edge[e] - edge_signal[e] - edge_power[e]
+        if available > 0:
+            add = min(power_remaining, available)
+            edge_power[e] += add
+            power_remaining -= add
 
     # Build the YAML structure
     # For max/spc/num configs, add MAX_IO_CONFIG define to use all-bidir RTL
