@@ -51,6 +51,11 @@ CORNER_CELL_SIZE = 355.0  # um (square)
 # Seal ring width
 SEAL_RING = 26.0  # um on each edge
 
+# Core margin from die edge
+# DEF configs use 442µm (original), generated configs use more for routing space
+CORE_MARGIN_DEFAULT = 442  # um - leaves ~92µm routing after 350µm IO cells
+CORE_MARGIN_GENERATED = 500  # um - leaves ~150µm routing for denser IO configs
+
 # Reference 1x1 pad counts (from default slot_1x1.yaml)
 REF_1X1_PAD_COUNT = 74  # Total pads in default 1x1 config
 
@@ -572,10 +577,22 @@ def generate_config_yaml(
     if density != Density.DEF:
         verilog_defines.append("MAX_IO_CONFIG")
 
+    # Use larger core margin for generated configs to provide more routing space
+    # for the denser IO configurations
+    if density == Density.DEF:
+        core_x1, core_y1 = slot.core_x1, slot.core_y1
+        core_x2, core_y2 = slot.core_x2, slot.core_y2
+    else:
+        margin_increase = CORE_MARGIN_GENERATED - CORE_MARGIN_DEFAULT
+        core_x1 = slot.core_x1 + margin_increase
+        core_y1 = slot.core_y1 + margin_increase
+        core_x2 = slot.core_x2 - margin_increase
+        core_y2 = slot.core_y2 - margin_increase
+
     yaml_data = {
         "FP_SIZING": "absolute",
         "DIE_AREA": [0, 0, slot.die_width, slot.die_height],
-        "CORE_AREA": [slot.core_x1, slot.core_y1, slot.core_x2, slot.core_y2],
+        "CORE_AREA": [core_x1, core_y1, core_x2, core_y2],
         "VERILOG_DEFINES": verilog_defines,
     }
 
