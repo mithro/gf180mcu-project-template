@@ -1,0 +1,218 @@
+name: IO Configurations
+
+# This workflow builds the generated IO configuration variants
+# Automatically runs for defaults + all 0.5x0.5 configs
+# Can also be triggered manually with filters
+
+on:
+  # Runs on pushes and PRs
+  push:
+    branches:
+      - "**"
+    tags-ignore:
+      - "**"
+  pull_request:
+
+  # Manual trigger with config selection
+  workflow_dispatch:
+    inputs:
+      configs:
+        description: 'Comma-separated list of configs (e.g., "1x1_def_all,0p5x1_max_nwc") or "all"'
+        required: false
+        default: 'all'
+        type: string
+      slot_type:
+        description: 'Slot size filter'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - 1x1
+          - 0p5x1
+          - 1x0p5
+          - 0p5x0p5
+      density:
+        description: 'Density filter'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - def
+          - max
+          - spc
+          - num
+      edges:
+        description: 'Edge configuration filter'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - top
+          - lft
+          - hor
+          - ver
+          - nwc
+          - sec
+
+concurrency:
+  group: io-configs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Generate the matrix of configurations to build
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Generate slot configurations
+        run: uv run scripts/generate_slot_configs.py
+
+      - name: Set matrix
+        id: set-matrix
+        run: |
+          # Get all generated config names
+          # Format: <slotsize>_<density>_<edges>
+          ALL_CONFIGS=$(ls librelane/slots/generated/*.yaml | xargs -n1 basename | sed 's/slot_//;s/.yaml//' | sort)
+
+          # Check if this is a manual dispatch or automatic trigger
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Manual trigger - apply filters
+
+            # Filter by slot type if specified
+            SLOT_TYPE="${{ inputs.slot_type }}"
+            if [ "$SLOT_TYPE" != "all" ] && [ -n "$SLOT_TYPE" ]; then
+              ALL_CONFIGS=$(echo "$ALL_CONFIGS" | grep "^${SLOT_TYPE}_")
+            fi
+
+            # Filter by density if specified
+            DENSITY="${{ inputs.density }}"
+            if [ "$DENSITY" != "all" ] && [ -n "$DENSITY" ]; then
+              ALL_CONFIGS=$(echo "$ALL_CONFIGS" | grep "_${DENSITY}_")
+            fi
+
+            # Filter by edges if specified
+            EDGES="${{ inputs.edges }}"
+            if [ "$EDGES" != "all" ] && [ -n "$EDGES" ]; then
+              ALL_CONFIGS=$(echo "$ALL_CONFIGS" | grep "_${EDGES}$")
+            fi
+
+            # Filter by specific configs if specified (overrides other filters)
+            INPUT_CONFIGS="${{ inputs.configs }}"
+            if [ "$INPUT_CONFIGS" != "all" ] && [ -n "$INPUT_CONFIGS" ]; then
+              # Convert comma-separated to grep pattern
+              PATTERN=$(echo "$INPUT_CONFIGS" | tr ',' '|')
+              ALL_CONFIGS=$(echo "$ALL_CONFIGS" | grep -E "^($PATTERN)$")
+            fi
+          else
+            # Automatic trigger (push/PR) - build defaults + all 0.5x0.5
+            # Select: all *_def_all configs AND all 0p5x0p5_* configs
+            ALL_CONFIGS=$(echo "$ALL_CONFIGS" | grep -E "(_def_all$|^0p5x0p5_)")
+          fi
+
+          # Convert to JSON array
+          MATRIX_JSON=$(echo "$ALL_CONFIGS" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
+          echo "Building configs: $MATRIX_JSON"
+
+  build:
+    runs-on: ubuntu-24.04
+    name: Build ${{ matrix.config }}
+    needs: prepare
+    if: ${{ needs.prepare.outputs.matrix != '[]' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Maximize build space
+        uses: AdityaGarg8/remove-unwanted-software@v5
+        with:
+          remove-dotnet: "true"
+          remove-android: "true"
+          remove-haskell: "true"
+          remove-codeql: "true"
+          remove-docker-images: "true"
+
+      - uses: actions/checkout@v4
+
+      - name: Setup Nix
+        uses: ./.github/actions/setup_nix
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          nix_cache_domain: ${{ vars.NIX_CACHE }}
+          nix_public_key: ${{ vars.NIX_PUBLIC_KEY }}
+
+      - name: Build with Nix
+        uses: ./.github/actions/build_nix
+        with:
+          nix_system: x86_64-linux
+
+      - name: Clone the PDK
+        run: make clone-pdk
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Generate slot configurations
+        run: uv run scripts/generate_slot_configs.py
+
+      - name: Set slot configuration
+        run: |
+          CONFIG="${{ matrix.config }}"
+          # Copy the generated config to the slot config location
+          # Extract slot type from config name (e.g., "1x1_max_all" -> "1x1", "0p5x0p5_spc_nwc" -> "0p5x0p5")
+          # Format: <slotsize>_<density>_<edges>
+          SLOT_TYPE=$(echo "$CONFIG" | sed -E 's/^(1x1|0p5x1|1x0p5|0p5x0p5)_.*/\1/')
+          cp "librelane/slots/generated/slot_${CONFIG}.yaml" "librelane/slots/slot_${SLOT_TYPE}.yaml"
+          echo "SLOT=${SLOT_TYPE}" >> $GITHUB_ENV
+          echo "CONFIG_NAME=${CONFIG}" >> $GITHUB_ENV
+
+      - name: Implement the Chip
+        run: |
+          nix develop --command make librelane
+          make copy-final
+          nix develop --command make render-image
+
+      - name: Create summary
+        run: |
+          echo "# Configuration: ${{ matrix.config }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Manufacturability" >> $GITHUB_STEP_SUMMARY
+          cat librelane/runs/*/*-misc-reportmanufacturability/manufacturability.rpt >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload GDS
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.config }}_gds
+          path: final/gds/*
+
+      - name: Upload image
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.config }}_image
+          path: img/*.png
+
+  # Create a summary of all builds
+  summary:
+    runs-on: ubuntu-latest
+    needs: build
+    if: always()
+    steps:
+      - name: Create summary
+        run: |
+          echo "# IO Configuration Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Filters Applied" >> $GITHUB_STEP_SUMMARY
+          echo "- Configs: ${{ inputs.configs || 'all' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Slot type: ${{ inputs.slot_type || 'all' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Density: ${{ inputs.density || 'all' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Edges: ${{ inputs.edges || 'all' }}" >> $GITHUB_STEP_SUMMARY
