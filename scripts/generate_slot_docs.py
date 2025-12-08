@@ -69,7 +69,7 @@ class SlotInfo:
     def die_area_mm2(self) -> float:
         return self.die_width_mm * self.die_height_mm
 
-    # === Slot size (die minus seal ring) ===
+    # === Usable silicon area (die minus seal ring) ===
     @property
     def slot_width_um(self) -> int:
         return self.die_width_um - (2 * SEAL_RING_UM)
@@ -423,17 +423,17 @@ def generate_markdown(slots: dict[str, SlotInfo], output_path: Path) -> None:
         "│                                         │",
         "└─────────────────────────────────────────┘",
         " ◄─────────── DIE SIZE ──────────────────►",
-        "   ◄──────── SLOT SIZE ────────────────►",
+        "   ◄────── USABLE SILICON ────────────►",
         "      ◄────── CORE SIZE ───────────►",
         "```",
         "",
         "- **Die Size**: The actual physical silicon dimensions, including all peripheral structures.",
-        "- **Slot Size**: Die size minus the seal ring (26µm on each edge). The seal ring protects the chip from damage during dicing.",
+        "- **Usable Silicon**: Die size minus the seal ring (26µm on each edge). The seal ring protects the chip from damage during dicing.",
         "- **Core Area**: The usable design area inside the IO ring where your logic is placed.",
         "",
         "## Slot Dimensions",
         "",
-        "| Slot | Die Size | Slot Size | Core Area | IO Overhead |",
+        "| Slot | Die Size | Usable Silicon | Core Area | IO Overhead |",
         "|------|----------|-----------|-----------|-------------|",
     ]
 
@@ -661,14 +661,14 @@ def generate_html(
 │                                         │
 └─────────────────────────────────────────┘
  ◄─────────── DIE SIZE ──────────────────►
-   ◄──────── SLOT SIZE ────────────────►
+   ◄────── USABLE SILICON ────────────►
       ◄────── CORE SIZE ───────────►
             </pre>
         </div>
         <dl class="size-definitions">
             <dt>Die Size</dt>
             <dd>The actual physical silicon dimensions. This is the total area of the chip including all peripheral structures.</dd>
-            <dt>Slot Size</dt>
+            <dt>Usable Silicon</dt>
             <dd>The die size minus the seal ring (26µm on each edge). The seal ring protects the chip from damage during dicing and provides a moisture barrier. This is the area available inside the seal ring.</dd>
             <dt>Core Area</dt>
             <dd>The usable design area inside the IO ring. This is where your digital logic, analog circuits, and other design elements are placed. The IO ring contains the pad cells that connect your design to the outside world.</dd>
@@ -695,7 +695,7 @@ def generate_html(
                 <dl class="specs">
                     <dt>Die Size</dt>
                     <dd>{slot.die_width_mm:.2f}mm × {slot.die_height_mm:.2f}mm ({slot.die_area_mm2:.2f}mm²)</dd>
-                    <dt>Slot Size</dt>
+                    <dt>Usable Silicon</dt>
                     <dd>{slot.slot_width_mm:.2f}mm × {slot.slot_height_mm:.2f}mm ({slot.slot_area_mm2:.2f}mm²)</dd>
                     <dt>Core Area</dt>
                     <dd>{slot.core_width_mm:.2f}mm × {slot.core_height_mm:.2f}mm ({slot.core_area_mm2:.2f}mm²)</dd>
@@ -719,7 +719,7 @@ def generate_html(
                 <tr>
                     <th>Slot</th>
                     <th>Die Size</th>
-                    <th>Slot Size</th>
+                    <th>Usable Silicon</th>
                     <th>Core Area</th>
                     <th>IO Overhead</th>
                     <th>Bidir</th>
