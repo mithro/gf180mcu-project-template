@@ -68,30 +68,30 @@ RTL_PAD_LIMITS = {
     "1x1": {
         "dvdd": 15,
         "dvss": 15,
-        "input": 0,
+        "input": 12,
         "bidir": 168,
-        "analog": 0,
+        "analog": 2,
     },
     "0p5x1": {
         "dvdd": 11,
         "dvss": 11,
-        "input": 0,
+        "input": 4,
         "bidir": 124,
-        "analog": 0,
+        "analog": 6,
     },
     "1x0p5": {
         "dvdd": 10,
         "dvss": 10,
-        "input": 0,
+        "input": 4,
         "bidir": 110,
-        "analog": 0,
+        "analog": 4,
     },
     "0p5x0p5": {
         "dvdd": 6,
         "dvss": 6,
-        "input": 0,
+        "input": 4,
         "bidir": 66,
-        "analog": 0,
+        "analog": 4,
     },
 }
 

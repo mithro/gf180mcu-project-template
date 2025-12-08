@@ -1,6 +1,7 @@
-// Maximum pad counts based on physical slot dimensions.
-// These define the maximum number of each pad type that can physically fit.
-// Actual configs may use fewer pads.
+// Pad counts supporting both default and maximum density configurations.
+// Default configs have mixed pad types (bidir, input, analog).
+// Max configs use all bidir pads for maximum signal count.
+// Each count is the maximum needed across all config variants.
 //
 // Physical limits per slot (IO cell = 75um, corner = 355um):
 // - 1x1:     N/S=42 pads, E/W=58 pads, total=200
@@ -14,10 +15,10 @@
 `define NUM_DVDD_PADS 15
 `define NUM_DVSS_PADS 15
 
-// Signal pads (max physical - clk - rst - power)
-`define NUM_INPUT_PADS 0
+// Signal pads - supports both def (mixed) and max (all bidir) configs
+`define NUM_INPUT_PADS 12
 `define NUM_BIDIR_PADS 168
-`define NUM_ANALOG_PADS 0
+`define NUM_ANALOG_PADS 2
 
 `endif
 
@@ -27,10 +28,10 @@
 `define NUM_DVDD_PADS 11
 `define NUM_DVSS_PADS 11
 
-// Signal pads
-`define NUM_INPUT_PADS 0
+// Signal pads - supports both def (mixed) and max (all bidir) configs
+`define NUM_INPUT_PADS 4
 `define NUM_BIDIR_PADS 124
-`define NUM_ANALOG_PADS 0
+`define NUM_ANALOG_PADS 6
 
 `endif
 
@@ -40,10 +41,10 @@
 `define NUM_DVDD_PADS 10
 `define NUM_DVSS_PADS 10
 
-// Signal pads
-`define NUM_INPUT_PADS 0
+// Signal pads - supports both def (mixed) and max (all bidir) configs
+`define NUM_INPUT_PADS 4
 `define NUM_BIDIR_PADS 110
-`define NUM_ANALOG_PADS 0
+`define NUM_ANALOG_PADS 4
 
 `endif
 
@@ -53,9 +54,9 @@
 `define NUM_DVDD_PADS 6
 `define NUM_DVSS_PADS 6
 
-// Signal pads
-`define NUM_INPUT_PADS 0
+// Signal pads - supports both def (mixed) and max (all bidir) configs
+`define NUM_INPUT_PADS 4
 `define NUM_BIDIR_PADS 66
-`define NUM_ANALOG_PADS 0
+`define NUM_ANALOG_PADS 4
 
 `endif
