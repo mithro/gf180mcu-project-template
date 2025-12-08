@@ -22,19 +22,25 @@ module chip_top #(
 
     inout  wire clk_PAD,
     inout  wire rst_n_PAD,
-    
+
+    `ifndef MAX_IO_CONFIG
     inout  wire [NUM_INPUT_PADS-1:0] input_PAD,
-    inout  wire [NUM_BIDIR_PADS-1:0] bidir_PAD,
-    
-    inout  wire [NUM_ANALOG_PADS-1:0] analog_PAD
+    `endif
+    inout  wire [NUM_BIDIR_PADS-1:0] bidir_PAD
+
+    `ifndef MAX_IO_CONFIG
+    ,inout  wire [NUM_ANALOG_PADS-1:0] analog_PAD
+    `endif
 );
 
     wire clk_PAD2CORE;
     wire rst_n_PAD2CORE;
-    
+
+    `ifndef MAX_IO_CONFIG
     wire [NUM_INPUT_PADS-1:0] input_PAD2CORE;
     wire [NUM_INPUT_PADS-1:0] input_CORE2PAD_PU;
     wire [NUM_INPUT_PADS-1:0] input_CORE2PAD_PD;
+    `endif
 
     wire [NUM_BIDIR_PADS-1:0] bidir_PAD2CORE;
     wire [NUM_BIDIR_PADS-1:0] bidir_CORE2PAD;
@@ -104,6 +110,7 @@ module chip_top #(
         .PD     (1'b0)
     );
 
+    `ifndef MAX_IO_CONFIG
     generate
     for (genvar i=0; i<NUM_INPUT_PADS; i++) begin : inputs
         (* keep *)
@@ -114,15 +121,16 @@ module chip_top #(
             .VDD    (VDD),
             .VSS    (VSS),
             `endif
-        
+
             .Y      (input_PAD2CORE[i]),
             .PAD    (input_PAD[i]),
-            
+
             .PU     (input_CORE2PAD_PU[i]),
             .PD     (input_CORE2PAD_PD[i])
         );
     end
     endgenerate
+    `endif
 
     generate
     for (genvar i=0; i<NUM_BIDIR_PADS; i++) begin : bidir
@@ -150,6 +158,7 @@ module chip_top #(
     end
     endgenerate
 
+    `ifndef MAX_IO_CONFIG
     generate
     for (genvar i=0; i<NUM_ANALOG_PADS; i++) begin : analog
         (* keep *)
@@ -164,6 +173,7 @@ module chip_top #(
         );
     end
     endgenerate
+    `endif
 
     // Core design
 
@@ -176,13 +186,15 @@ module chip_top #(
         .VDD        (VDD),
         .VSS        (VSS),
         `endif
-    
+
         .clk        (clk_PAD2CORE),
         .rst_n      (rst_n_PAD2CORE),
-    
+
+        `ifndef MAX_IO_CONFIG
         .input_in   (input_PAD2CORE),
         .input_pu   (input_CORE2PAD_PU),
         .input_pd   (input_CORE2PAD_PD),
+        `endif
 
         .bidir_in   (bidir_PAD2CORE),
         .bidir_out  (bidir_CORE2PAD),
@@ -191,9 +203,11 @@ module chip_top #(
         .bidir_sl   (bidir_CORE2PAD_SL),
         .bidir_ie   (bidir_CORE2PAD_IE),
         .bidir_pu   (bidir_CORE2PAD_PU),
-        .bidir_pd   (bidir_CORE2PAD_PD),
-        
-        .analog     (analog_PAD)
+        .bidir_pd   (bidir_CORE2PAD_PD)
+
+        `ifndef MAX_IO_CONFIG
+        ,.analog     (analog_PAD)
+        `endif
     );
     
     // Chip ID - do not remove, necessary for tapeout
