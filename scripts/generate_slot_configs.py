@@ -62,36 +62,36 @@ DEFAULT_PAD_COUNTS = {
     "0p5x0p5": 56,
 }
 
-# RTL pad limits from src/slot_defines.svh
-# These are set to support maximum physical IO configurations
+# RTL pad limits when MAX_IO_CONFIG is defined (used by generated configs)
+# DEF configs use original files and don't go through this validation
 RTL_PAD_LIMITS = {
     "1x1": {
         "dvdd": 15,
         "dvss": 15,
-        "input": 12,
+        "input": 0,
         "bidir": 168,
-        "analog": 2,
+        "analog": 0,
     },
     "0p5x1": {
         "dvdd": 11,
         "dvss": 11,
-        "input": 4,
+        "input": 0,
         "bidir": 124,
-        "analog": 6,
+        "analog": 0,
     },
     "1x0p5": {
         "dvdd": 10,
         "dvss": 10,
-        "input": 4,
+        "input": 0,
         "bidir": 110,
-        "analog": 4,
+        "analog": 0,
     },
     "0p5x0p5": {
         "dvdd": 6,
         "dvss": 6,
-        "input": 4,
+        "input": 0,
         "bidir": 66,
-        "analog": 4,
+        "analog": 0,
     },
 }
 
@@ -507,11 +507,16 @@ def generate_config_yaml(
         edge_power[e] = int(power_pads * ratio)
 
     # Build the YAML structure
+    # For max/spc/num configs, add MAX_IO_CONFIG define to use all-bidir RTL
+    verilog_defines = [slot.verilog_define]
+    if density != Density.DEF:
+        verilog_defines.append("MAX_IO_CONFIG")
+
     yaml_data = {
         "FP_SIZING": "absolute",
         "DIE_AREA": [0, 0, slot.die_width, slot.die_height],
         "CORE_AREA": [slot.core_x1, slot.core_y1, slot.core_x2, slot.core_y2],
-        "VERILOG_DEFINES": [slot.verilog_define],
+        "VERILOG_DEFINES": verilog_defines,
     }
 
     # Generate pads for each edge

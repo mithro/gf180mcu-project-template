@@ -7,7 +7,7 @@ FP_SIZING: absolute
 DIE_AREA: [0, 0, 1936, 5122]
 CORE_AREA: [442, 442, 1494, 4680]
 
-VERILOG_DEFINES: ['SLOT_0P5X1']
+VERILOG_DEFINES: ['SLOT_0P5X1', 'MAX_IO_CONFIG']
 
 # Pad instances for the padring
 PAD_SOUTH: [
