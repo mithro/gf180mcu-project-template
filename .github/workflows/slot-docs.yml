@@ -51,84 +51,89 @@ jobs:
         run: |
           mkdir -p _site/images _site/thumbnails
 
-          # Get the run ID to fetch artifacts from
-          # Try IO Configurations first (has config variant images), then CI (has base slot images)
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            RUN_ID="${{ github.event.workflow_run.id }}"
-          else
-            # For manual/push trigger, try IO Configurations workflow first for config variant images
-            BRANCH="${{ github.ref_name }}"
+          download_from_run() {
+            local RUN_ID=$1
+            local SOURCE=$2
+            echo "Downloading images from $SOURCE run $RUN_ID"
 
-            # Try successful IO Configurations on current branch
-            RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=${BRANCH}&status=success&per_page=10" \
-              -q '.workflow_runs[] | select(.name == "IO Configurations") | .id' | head -1)
+            # Get list of image artifacts
+            ARTIFACTS=$(gh api "repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts" \
+              -q '.artifacts[] | select(.name | endswith("_image")) | .name')
 
-            # Try cancelled IO Configurations on current branch (may have partial artifacts)
-            if [ -z "$RUN_ID" ]; then
-              RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=${BRANCH}&per_page=20" \
-                -q '.workflow_runs[] | select(.name == "IO Configurations" and .conclusion == "cancelled") | .id' | head -1)
-            fi
+            for ARTIFACT in $ARTIFACTS; do
+              SLOT_NAME="${ARTIFACT%_image}"
+              echo "  Downloading $SLOT_NAME..."
 
-            # Fallback to CI workflow on current branch
-            if [ -z "$RUN_ID" ]; then
-              RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=${BRANCH}&status=success&per_page=10" \
-                -q '.workflow_runs[] | select(.name == "CI") | .id' | head -1)
-            fi
+              # Download and extract artifact
+              gh run download "$RUN_ID" -n "$ARTIFACT" -D _tmp_artifact
 
-            # Fallback to successful IO Configurations on main
-            if [ -z "$RUN_ID" ]; then
-              RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=main&status=success&per_page=10" \
-                -q '.workflow_runs[] | select(.name == "IO Configurations") | .id' | head -1)
-            fi
+              # Copy images with proper naming
+              for PNG in _tmp_artifact/*.png; do
+                [ -f "$PNG" ] || continue
+                BASENAME=$(basename "$PNG")
 
-            # Fallback to cancelled IO Configurations on main (may have partial artifacts)
-            if [ -z "$RUN_ID" ]; then
-              RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=main&per_page=20" \
-                -q '.workflow_runs[] | select(.name == "IO Configurations" and .conclusion == "cancelled") | .id' | head -1)
-            fi
+                # Determine variant (black/white background)
+                if echo "$BASENAME" | grep -qi "black"; then
+                  VARIANT="black"
+                else
+                  VARIANT="white"
+                fi
 
-            # Final fallback to CI on main
-            if [ -z "$RUN_ID" ]; then
-              RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=main&status=success&per_page=10" \
-                -q '.workflow_runs[] | select(.name == "CI") | .id' | head -1)
-            fi
-          fi
+                cp "$PNG" "_site/images/${SLOT_NAME}_${VARIANT}.png"
+              done
 
-          if [ -z "$RUN_ID" ]; then
-            echo "No CI or IO Configurations run found, skipping image download"
-            exit 0
-          fi
-
-          echo "Downloading images from run $RUN_ID"
-
-          # Get list of image artifacts
-          ARTIFACTS=$(gh api "repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts" \
-            -q '.artifacts[] | select(.name | endswith("_image")) | .name')
-
-          for ARTIFACT in $ARTIFACTS; do
-            SLOT_NAME="${ARTIFACT%_image}"
-            echo "Downloading $SLOT_NAME..."
-
-            # Download and extract artifact
-            gh run download "$RUN_ID" -n "$ARTIFACT" -D _tmp_artifact
-
-            # Copy images with proper naming
-            for PNG in _tmp_artifact/*.png; do
-              [ -f "$PNG" ] || continue
-              BASENAME=$(basename "$PNG")
-
-              # Determine variant (black/white background)
-              if echo "$BASENAME" | grep -qi "black"; then
-                VARIANT="black"
-              else
-                VARIANT="white"
-              fi
-
-              cp "$PNG" "_site/images/${SLOT_NAME}_${VARIANT}.png"
+              rm -rf _tmp_artifact
             done
+          }
 
-            rm -rf _tmp_artifact
-          done
+          BRANCH="${{ github.ref_name }}"
+          DOWNLOADED=0
+
+          # 1. Try IO Configurations workflow first (has config variant images)
+          # First try successful runs
+          IO_RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=${BRANCH}&status=success&per_page=10" \
+            -q '.workflow_runs[] | select(.name == "IO Configurations") | .id' | head -1)
+
+          # Try cancelled IO Configurations (may have partial artifacts)
+          if [ -z "$IO_RUN_ID" ]; then
+            IO_RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=${BRANCH}&per_page=20" \
+              -q '.workflow_runs[] | select(.name == "IO Configurations" and .conclusion == "cancelled") | .id' | head -1)
+          fi
+
+          # Try IO Configurations on main
+          if [ -z "$IO_RUN_ID" ]; then
+            IO_RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=main&status=success&per_page=10" \
+              -q '.workflow_runs[] | select(.name == "IO Configurations") | .id' | head -1)
+          fi
+
+          # Try cancelled IO Configurations on main
+          if [ -z "$IO_RUN_ID" ]; then
+            IO_RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=main&per_page=20" \
+              -q '.workflow_runs[] | select(.name == "IO Configurations" and .conclusion == "cancelled") | .id' | head -1)
+          fi
+
+          if [ -n "$IO_RUN_ID" ]; then
+            download_from_run "$IO_RUN_ID" "IO Configurations"
+            DOWNLOADED=1
+          fi
+
+          # 2. Also download from CI workflow (has base slot images that may not be in IO Configurations)
+          CI_RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=${BRANCH}&status=success&per_page=10" \
+            -q '.workflow_runs[] | select(.name == "CI") | .id' | head -1)
+
+          if [ -z "$CI_RUN_ID" ]; then
+            CI_RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=main&status=success&per_page=10" \
+              -q '.workflow_runs[] | select(.name == "CI") | .id' | head -1)
+          fi
+
+          if [ -n "$CI_RUN_ID" ]; then
+            download_from_run "$CI_RUN_ID" "CI"
+            DOWNLOADED=1
+          fi
+
+          if [ "$DOWNLOADED" -eq 0 ]; then
+            echo "No CI or IO Configurations run found, skipping image download"
+          fi
 
       - name: Normalize images to consistent scale
         run: |
