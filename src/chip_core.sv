@@ -81,9 +81,9 @@ module chip_core #(
         end
     end
 
-    logic [7:0] sram_0_out;
+    logic [7:0] sram_out;
 
-    gf180mcu_fd_ip_sram__sram512x8m8wm1 sram_0 (
+    gf180mcu_fd_ip_sram__sram512x8m8wm1 sram (
         `ifdef USE_POWER_PINS
         .VDD  (VDD),
         .VSS  (VSS),
@@ -95,27 +95,10 @@ module chip_core #(
         .WEN  (8'b0),
         .A    ('0),
         .D    ('0),
-        .Q    (sram_0_out)
+        .Q    (sram_out)
     );
 
-    logic [7:0] sram_1_out;
-
-    gf180mcu_fd_ip_sram__sram512x8m8wm1 sram_1 (
-        `ifdef USE_POWER_PINS
-        .VDD  (VDD),
-        .VSS  (VSS),
-        `endif
-
-        .CLK  (clk),
-        .CEN  (1'b1),
-        .GWEN (1'b0),
-        .WEN  (8'b0),
-        .A    ('0),
-        .D    ('0),
-        .Q    (sram_1_out)
-    );
-
-    assign bidir_out = count ^ {24'd0, sram_0_out, sram_1_out};
+    assign bidir_out = count ^ {{(NUM_BIDIR_PADS-8){1'b0}}, sram_out};
 
 endmodule
 
