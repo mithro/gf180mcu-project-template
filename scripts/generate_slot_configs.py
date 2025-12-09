@@ -284,7 +284,8 @@ def calculate_pads_for_density(
 
         for i, e in enumerate(edge_list):
             if i == len(edge_list) - 1:
-                pads_per_edge[e] = remaining
+                # Last edge gets remainder, but still capped at max
+                pads_per_edge[e] = min(remaining, max_pads[e])
             else:
                 ratio = max_pads[e] / total_capacity
                 edge_count = int(target_total * ratio)
@@ -317,8 +318,8 @@ def calculate_pads_for_density(
 
         for i, e in enumerate(edge_list):
             if i == len(edge_list) - 1:
-                # Last edge gets remainder
-                pads_per_edge[e] = remaining
+                # Last edge gets remainder, but still capped at max
+                pads_per_edge[e] = min(remaining, max_pads[e])
             else:
                 # Proportional distribution
                 ratio = max_pads[e] / total_capacity

@@ -1,13 +1,13 @@
 # 1x1 pad count, All four edges
 # Slot: 0p5x0p5, Density: num, Edges: all
-# Total pads: 74 (signal: 62, power: 10)
+# Total pads: 73 (signal: 61, power: 10)
 #
 # Floorplanning
 FP_SIZING: absolute
 DIE_AREA: [0, 0, 1936, 2531]
 CORE_AREA: [600, 600, 1336, 1931]
 
-VERILOG_DEFINES: ['SLOT_0P5X0P5', 'MAX_IO_CONFIG', 'NUM_BIDIR_PADS_OVERRIDE=62']
+VERILOG_DEFINES: ['SLOT_0P5X0P5', 'MAX_IO_CONFIG', 'NUM_BIDIR_PADS_OVERRIDE=61']
 
 # Pad instances for the padring
 PAD_SOUTH: [
@@ -70,7 +70,6 @@ PAD_NORTH: [
 ]
 
 PAD_WEST: [
-    "bidir\\[61\\].pad",
     "bidir\\[60\\].pad",
     "bidir\\[59\\].pad",
     "bidir\\[58\\].pad",
