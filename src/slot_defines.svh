@@ -18,7 +18,11 @@
 `ifdef MAX_IO_CONFIG
   // Maximum bidir configuration - no input/analog pads
   `define NUM_INPUT_PADS 0
-  `define NUM_BIDIR_PADS 168
+  `ifdef NUM_BIDIR_PADS_OVERRIDE
+    `define NUM_BIDIR_PADS `NUM_BIDIR_PADS_OVERRIDE
+  `else
+    `define NUM_BIDIR_PADS 168
+  `endif
   `define NUM_ANALOG_PADS 0
 `else
   // Default configuration - mixed pad types from original slot_1x1.yaml
@@ -37,7 +41,11 @@
 `ifdef MAX_IO_CONFIG
   // Maximum bidir configuration - no input/analog pads
   `define NUM_INPUT_PADS 0
-  `define NUM_BIDIR_PADS 122
+  `ifdef NUM_BIDIR_PADS_OVERRIDE
+    `define NUM_BIDIR_PADS `NUM_BIDIR_PADS_OVERRIDE
+  `else
+    `define NUM_BIDIR_PADS 122
+  `endif
   `define NUM_ANALOG_PADS 0
 `else
   // Default configuration - mixed pad types from original slot_0p5x1.yaml
@@ -56,7 +64,11 @@
 `ifdef MAX_IO_CONFIG
   // Maximum bidir configuration - no input/analog pads
   `define NUM_INPUT_PADS 0
-  `define NUM_BIDIR_PADS 108
+  `ifdef NUM_BIDIR_PADS_OVERRIDE
+    `define NUM_BIDIR_PADS `NUM_BIDIR_PADS_OVERRIDE
+  `else
+    `define NUM_BIDIR_PADS 108
+  `endif
   `define NUM_ANALOG_PADS 0
 `else
   // Default configuration - mixed pad types from original slot_1x0p5.yaml
@@ -75,7 +87,11 @@
 `ifdef MAX_IO_CONFIG
   // Maximum bidir configuration - no input/analog pads
   `define NUM_INPUT_PADS 0
-  `define NUM_BIDIR_PADS 62
+  `ifdef NUM_BIDIR_PADS_OVERRIDE
+    `define NUM_BIDIR_PADS `NUM_BIDIR_PADS_OVERRIDE
+  `else
+    `define NUM_BIDIR_PADS 62
+  `endif
   `define NUM_ANALOG_PADS 0
 `else
   // Default configuration - mixed pad types from original slot_0p5x0p5.yaml

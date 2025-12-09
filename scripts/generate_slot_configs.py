@@ -576,6 +576,11 @@ def generate_config_yaml(
     verilog_defines = [slot.verilog_define]
     if density != Density.DEF:
         verilog_defines.append("MAX_IO_CONFIG")
+        # Add explicit pad count override for the actual number of bidir pads
+        # This is needed for sparse edge configs where actual pad count differs
+        # from the slot's maximum capacity
+        actual_bidir = signal_pads  # signal_pads is the bidir count (excludes clk/rst)
+        verilog_defines.append(f"NUM_BIDIR_PADS_OVERRIDE={actual_bidir}")
 
     # Use larger core margin for generated configs to provide more routing space
     # for the denser IO configurations
