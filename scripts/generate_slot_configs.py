@@ -54,7 +54,7 @@ SEAL_RING = 26.0  # um on each edge
 # Core margin from die edge
 # DEF configs use 442µm (original), generated configs use more for routing space
 CORE_MARGIN_DEFAULT = 442  # um - leaves ~92µm routing after 350µm IO cells
-CORE_MARGIN_GENERATED = 500  # um - leaves ~150µm routing for denser IO configs
+CORE_MARGIN_GENERATED = 600  # um - leaves ~250µm routing for denser IO configs
 
 # Reference 1x1 pad counts (from default slot_1x1.yaml)
 REF_1X1_PAD_COUNT = 74  # Total pads in default 1x1 config
