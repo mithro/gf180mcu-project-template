@@ -625,17 +625,31 @@ def generate_config_yaml(
         if actual_bidir != max_bidir_default:
             verilog_defines.append(f"NUM_BIDIR_PADS_OVERRIDE={actual_bidir}")
 
-    # Use larger core margin for generated configs to provide more routing space
-    # for the denser IO configurations
+    # Calculate core margins based on which edges have IO pads
+    # Edges WITH IO pads need full margin for routing
+    # Edges WITHOUT IO pads can have minimal margin (just seal ring + small buffer)
     if density == Density.DEF:
         core_x1, core_y1 = slot.core_x1, slot.core_y1
         core_x2, core_y2 = slot.core_x2, slot.core_y2
     else:
-        margin_increase = CORE_MARGIN_GENERATED - CORE_MARGIN_DEFAULT
-        core_x1 = slot.core_x1 + margin_increase
-        core_y1 = slot.core_y1 + margin_increase
-        core_x2 = slot.core_x2 - margin_increase
-        core_y2 = slot.core_y2 - margin_increase
+        # Margin for edges with IO pads (needs space for IO cells + routing)
+        margin_with_io = CORE_MARGIN_GENERATED
+        # Margin for edges without IO pads (just seal ring + small buffer for routing)
+        margin_no_io = SEAL_RING + 100  # ~126µm
+
+        # West edge (affects core_x1)
+        west_margin = margin_with_io if "west" in active_edges else margin_no_io
+        # East edge (affects core_x2)
+        east_margin = margin_with_io if "east" in active_edges else margin_no_io
+        # South edge (affects core_y1)
+        south_margin = margin_with_io if "south" in active_edges else margin_no_io
+        # North edge (affects core_y2)
+        north_margin = margin_with_io if "north" in active_edges else margin_no_io
+
+        core_x1 = int(west_margin)
+        core_y1 = int(south_margin)
+        core_x2 = int(slot.die_width - east_margin)
+        core_y2 = int(slot.die_height - north_margin)
 
     yaml_data = {
         "FP_SIZING": "absolute",
