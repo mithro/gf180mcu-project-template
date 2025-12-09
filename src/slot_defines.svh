@@ -15,12 +15,12 @@
 `ifdef NUM_DVDD_PADS_OVERRIDE
   `define NUM_DVDD_PADS `NUM_DVDD_PADS_OVERRIDE
 `else
-  `define NUM_DVDD_PADS 15
+  `define NUM_DVDD_PADS 8
 `endif
 `ifdef NUM_DVSS_PADS_OVERRIDE
   `define NUM_DVSS_PADS `NUM_DVSS_PADS_OVERRIDE
 `else
-  `define NUM_DVSS_PADS 15
+  `define NUM_DVSS_PADS 10
 `endif
 
 `ifdef MAX_IO_CONFIG
@@ -46,12 +46,12 @@
 `ifdef NUM_DVDD_PADS_OVERRIDE
   `define NUM_DVDD_PADS `NUM_DVDD_PADS_OVERRIDE
 `else
-  `define NUM_DVDD_PADS 11
+  `define NUM_DVDD_PADS 8
 `endif
 `ifdef NUM_DVSS_PADS_OVERRIDE
   `define NUM_DVSS_PADS `NUM_DVSS_PADS_OVERRIDE
 `else
-  `define NUM_DVSS_PADS 11
+  `define NUM_DVSS_PADS 8
 `endif
 
 `ifdef MAX_IO_CONFIG
@@ -77,12 +77,12 @@
 `ifdef NUM_DVDD_PADS_OVERRIDE
   `define NUM_DVDD_PADS `NUM_DVDD_PADS_OVERRIDE
 `else
-  `define NUM_DVDD_PADS 10
+  `define NUM_DVDD_PADS 8
 `endif
 `ifdef NUM_DVSS_PADS_OVERRIDE
   `define NUM_DVSS_PADS `NUM_DVSS_PADS_OVERRIDE
 `else
-  `define NUM_DVSS_PADS 10
+  `define NUM_DVSS_PADS 8
 `endif
 
 `ifdef MAX_IO_CONFIG
@@ -108,12 +108,12 @@
 `ifdef NUM_DVDD_PADS_OVERRIDE
   `define NUM_DVDD_PADS `NUM_DVDD_PADS_OVERRIDE
 `else
-  `define NUM_DVDD_PADS 6
+  `define NUM_DVDD_PADS 4
 `endif
 `ifdef NUM_DVSS_PADS_OVERRIDE
   `define NUM_DVSS_PADS `NUM_DVSS_PADS_OVERRIDE
 `else
-  `define NUM_DVSS_PADS 6
+  `define NUM_DVSS_PADS 4
 `endif
 
 `ifdef MAX_IO_CONFIG

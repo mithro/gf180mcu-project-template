@@ -67,41 +67,83 @@ DEFAULT_PAD_COUNTS = {
     "0p5x0p5": 56,
 }
 
-# RTL pad limits when MAX_IO_CONFIG is defined (used by generated configs)
-# DEF configs use original files and don't go through this validation
-# These are calculated from physical limits accounting for seal ring:
-#   1x1:     N/S=42, E/W=58, Total=200, Signal~170, Power~30
-#   0p5x1:   N/S=15, E/W=58, Total=146, Signal~124, Power~22
-#   1x0p5:   N/S=42, E/W=23, Total=130, Signal~110, Power~20
-#   0p5x0p5: N/S=15, E/W=23, Total=76,  Signal~64,  Power~12
-RTL_PAD_LIMITS = {
+# RTL pad defaults without MAX_IO_CONFIG - these must match slot_defines.svh
+# Used by DEF configs. The values match the original slot config files.
+RTL_PAD_DEF_DEFAULTS = {
+    "1x1": {
+        "dvdd": 8,
+        "dvss": 10,
+        "input": 12,
+        "bidir": 40,
+        "analog": 2,
+    },
+    "0p5x1": {
+        "dvdd": 8,
+        "dvss": 8,
+        "input": 4,
+        "bidir": 44,
+        "analog": 6,
+    },
+    "1x0p5": {
+        "dvdd": 8,
+        "dvss": 8,
+        "input": 4,
+        "bidir": 46,
+        "analog": 4,
+    },
+    "0p5x0p5": {
+        "dvdd": 4,
+        "dvss": 4,
+        "input": 4,
+        "bidir": 38,
+        "analog": 4,
+    },
+}
+
+# RTL pad defaults with MAX_IO_CONFIG - these must match slot_defines.svh
+# Used by MAX/SPC/NUM configs. These are the default values when MAX_IO_CONFIG
+# is defined, without any overrides. Power pad defaults are the same as DEF.
+RTL_PAD_MAX_DEFAULTS = {
+    "1x1": {
+        "dvdd": 8,
+        "dvss": 10,
+        "bidir": 168,
+    },
+    "0p5x1": {
+        "dvdd": 8,
+        "dvss": 8,
+        "bidir": 122,
+    },
+    "1x0p5": {
+        "dvdd": 8,
+        "dvss": 8,
+        "bidir": 108,
+    },
+    "0p5x0p5": {
+        "dvdd": 4,
+        "dvss": 4,
+        "bidir": 62,
+    },
+}
+
+# Physical pad limits - maximum pads that physically fit on each slot
+# These are used for pad distribution in generated configs
+PHYSICAL_PAD_LIMITS = {
     "1x1": {
         "dvdd": 15,
         "dvss": 15,
-        "input": 0,
-        "bidir": 168,
-        "analog": 0,
     },
     "0p5x1": {
         "dvdd": 11,
         "dvss": 11,
-        "input": 0,
-        "bidir": 122,
-        "analog": 0,
     },
     "1x0p5": {
         "dvdd": 10,
         "dvss": 10,
-        "input": 0,
-        "bidir": 108,
-        "analog": 0,
     },
     "0p5x0p5": {
         "dvdd": 6,
         "dvss": 6,
-        "input": 0,
-        "bidir": 62,
-        "analog": 0,
     },
 }
 
@@ -332,18 +374,18 @@ def calculate_pads_for_density(
 
 
 def get_rtl_signal_limit(slot_name: str) -> int:
-    """Get the maximum number of signal pads the RTL supports.
+    """Get the maximum number of signal pads the RTL supports with MAX_IO_CONFIG.
 
     This is bidir + 2 (clk + rst_n). We don't count input/analog
     since our generated configs use bidir for all signal pads.
     """
-    limits = RTL_PAD_LIMITS[slot_name]
+    limits = RTL_PAD_MAX_DEFAULTS[slot_name]
     return limits["bidir"] + 2  # +2 for clk and rst_n
 
 
 def get_rtl_power_limit(slot_name: str) -> int:
-    """Get the maximum number of power pads the RTL supports."""
-    limits = RTL_PAD_LIMITS[slot_name]
+    """Get the maximum number of power pads that physically fit on this slot."""
+    limits = PHYSICAL_PAD_LIMITS[slot_name]
     return limits["dvdd"] + limits["dvss"]
 
 
@@ -577,11 +619,11 @@ def generate_config_yaml(
     verilog_defines = [slot.verilog_define]
     if density != Density.DEF:
         verilog_defines.append("MAX_IO_CONFIG")
-        # Add explicit pad count override for the actual number of bidir pads
-        # This is needed for sparse edge configs where actual pad count differs
-        # from the slot's maximum capacity
+        # Add bidir pad count override if actual count differs from MAX_IO_CONFIG default
         actual_bidir = signal_pads  # signal_pads is the bidir count (excludes clk/rst)
-        verilog_defines.append(f"NUM_BIDIR_PADS_OVERRIDE={actual_bidir}")
+        max_bidir_default = RTL_PAD_MAX_DEFAULTS[slot.name]["bidir"]
+        if actual_bidir != max_bidir_default:
+            verilog_defines.append(f"NUM_BIDIR_PADS_OVERRIDE={actual_bidir}")
 
     # Use larger core margin for generated configs to provide more routing space
     # for the denser IO configurations
@@ -638,10 +680,10 @@ def generate_config_yaml(
         else:
             yaml_data[direction] = []
 
-    # Add power pad overrides if actual counts differ from RTL limits
+    # Add power pad overrides if actual counts differ from RTL MAX_IO_CONFIG defaults
     # This is needed for sparse edge configs and configs with different power ratios
     if density != Density.DEF:
-        rtl_limits = RTL_PAD_LIMITS[slot.name]
+        rtl_limits = RTL_PAD_MAX_DEFAULTS[slot.name]
         if vdd_idx != rtl_limits["dvdd"]:
             yaml_data["VERILOG_DEFINES"].append(f"NUM_DVDD_PADS_OVERRIDE={vdd_idx}")
         if vss_idx != rtl_limits["dvss"]:
