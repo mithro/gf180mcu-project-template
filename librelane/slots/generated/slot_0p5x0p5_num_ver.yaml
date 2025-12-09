@@ -10,8 +10,10 @@ CORE_AREA: [442, 130, 1494, 2401]
 VERILOG_DEFINES: ['SLOT_0P5X0P5', 'MAX_IO_CONFIG', 'NUM_BIDIR_PADS_OVERRIDE=38', 'NUM_DVDD_PADS_OVERRIDE=3', 'NUM_DVSS_PADS_OVERRIDE=3']
 
 # PDN configuration for partial padring
-# Disable pad connection to prevent ring removal on edges without pads
-PDN_CORE_RING_CONNECT_TO_PADS: False
+# Disable core ring and use stripes extending to boundary instead.
+# This avoids floating ring segments on edges without pads.
+PDN_CORE_RING: False
+PDN_EXTEND_TO: boundary
 
 # Pad instances for the padring
 PAD_SOUTH: []
