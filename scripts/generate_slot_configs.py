@@ -659,6 +659,12 @@ def generate_config_yaml(
         "VERILOG_DEFINES": verilog_defines,
     }
 
+    # For partial padring configs (not all 4 edges have IO), disable PDN ring
+    # connection to pads. This prevents the ring from being removed as "floating"
+    # on edges without pads. Power still flows through the ring from edges with pads.
+    if edges != Edges.ALL:
+        yaml_data["PDN_CORE_RING_CONNECT_TO_PADS"] = False
+
     # Generate pads for each edge
     bidir_idx = 0
     vdd_idx = 0
@@ -728,6 +734,14 @@ def generate_config_yaml(
         f.write(f"CORE_AREA: {yaml_data['CORE_AREA']}\n")
         f.write(f"\n")
         f.write(f"VERILOG_DEFINES: {yaml_data['VERILOG_DEFINES']}\n")
+
+        # Write PDN settings if present (for partial padring configs)
+        if "PDN_CORE_RING_CONNECT_TO_PADS" in yaml_data:
+            f.write(f"\n")
+            f.write("# PDN configuration for partial padring\n")
+            f.write("# Disable pad connection to prevent ring removal on edges without pads\n")
+            f.write(f"PDN_CORE_RING_CONNECT_TO_PADS: {str(yaml_data['PDN_CORE_RING_CONNECT_TO_PADS'])}\n")
+
         f.write(f"\n")
         f.write("# Pad instances for the padring\n")
 
