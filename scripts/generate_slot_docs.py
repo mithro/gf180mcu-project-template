@@ -946,7 +946,7 @@ def generate_html(
         html += """
     <div class="section">
         <h2>Configuration Variants</h2>
-        <p>Each slot size has multiple configuration variants. Click on a slot to expand its variants.</p>
+        <p>Each slot size has multiple configuration variants. Click on a slot to expand its variants. Click on images to view full size.</p>
 """
         for name in sorted_names:
             if name not in configs:
@@ -960,6 +960,7 @@ def generate_html(
             <table style="margin-top: 10px;">
                 <thead>
                     <tr>
+                        <th>Image</th>
                         <th>Config Name</th>
                         <th>Density</th>
                         <th>Edges</th>
@@ -974,7 +975,18 @@ def generate_html(
             for cfg in slot_configs:
                 density_label = DENSITY_LABELS.get(cfg.density, cfg.density)
                 edges_label = EDGE_LABELS.get(cfg.edges, cfg.edges)
+
+                # Check for config image (try white background first)
+                img_cell = ""
+                config_thumb = get_image_path(cfg.config_name, "white")
+                if config_thumb:
+                    full_img = f"images/{cfg.config_name}_white.png"
+                    img_cell = f'<img src="{config_thumb}" alt="{cfg.config_name}" style="max-width: 80px; cursor: pointer;" onclick="openModal(\'{full_img}\')">'
+                else:
+                    img_cell = '<span style="color: #999;">-</span>'
+
                 html += f"""                    <tr>
+                        <td style="text-align: center;">{img_cell}</td>
                         <td><code>{cfg.config_name}</code></td>
                         <td>{density_label}</td>
                         <td>{edges_label}</td>
