@@ -634,8 +634,9 @@ def generate_config_yaml(
     else:
         # Margin for edges with IO pads - same as DEF config
         margin_with_io = CORE_MARGIN_DEFAULT
-        # Margin for edges without IO pads (just seal ring + small buffer for routing)
-        margin_no_io = SEAL_RING + 100  # ~126µm
+        # Margin for edges without IO pads (seal ring + buffer, grid-aligned)
+        # Value must be aligned to placement site grid. 130µm works (126 gets snapped).
+        margin_no_io = 130  # Seal ring (26) + 104µm buffer, grid-aligned
 
         # West edge (affects core_x1)
         west_margin = margin_with_io if "west" in active_edges else margin_no_io
