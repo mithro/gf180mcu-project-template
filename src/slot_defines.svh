@@ -12,8 +12,16 @@
 
 `ifdef SLOT_1X1
 
-`define NUM_DVDD_PADS 15
-`define NUM_DVSS_PADS 15
+`ifdef NUM_DVDD_PADS_OVERRIDE
+  `define NUM_DVDD_PADS `NUM_DVDD_PADS_OVERRIDE
+`else
+  `define NUM_DVDD_PADS 15
+`endif
+`ifdef NUM_DVSS_PADS_OVERRIDE
+  `define NUM_DVSS_PADS `NUM_DVSS_PADS_OVERRIDE
+`else
+  `define NUM_DVSS_PADS 15
+`endif
 
 `ifdef MAX_IO_CONFIG
   // Maximum bidir configuration - no input/analog pads
@@ -35,8 +43,16 @@
 
 `ifdef SLOT_0P5X1
 
-`define NUM_DVDD_PADS 11
-`define NUM_DVSS_PADS 11
+`ifdef NUM_DVDD_PADS_OVERRIDE
+  `define NUM_DVDD_PADS `NUM_DVDD_PADS_OVERRIDE
+`else
+  `define NUM_DVDD_PADS 11
+`endif
+`ifdef NUM_DVSS_PADS_OVERRIDE
+  `define NUM_DVSS_PADS `NUM_DVSS_PADS_OVERRIDE
+`else
+  `define NUM_DVSS_PADS 11
+`endif
 
 `ifdef MAX_IO_CONFIG
   // Maximum bidir configuration - no input/analog pads
@@ -58,8 +74,16 @@
 
 `ifdef SLOT_1X0P5
 
-`define NUM_DVDD_PADS 10
-`define NUM_DVSS_PADS 10
+`ifdef NUM_DVDD_PADS_OVERRIDE
+  `define NUM_DVDD_PADS `NUM_DVDD_PADS_OVERRIDE
+`else
+  `define NUM_DVDD_PADS 10
+`endif
+`ifdef NUM_DVSS_PADS_OVERRIDE
+  `define NUM_DVSS_PADS `NUM_DVSS_PADS_OVERRIDE
+`else
+  `define NUM_DVSS_PADS 10
+`endif
 
 `ifdef MAX_IO_CONFIG
   // Maximum bidir configuration - no input/analog pads
@@ -81,8 +105,16 @@
 
 `ifdef SLOT_0P5X0P5
 
-`define NUM_DVDD_PADS 6
-`define NUM_DVSS_PADS 6
+`ifdef NUM_DVDD_PADS_OVERRIDE
+  `define NUM_DVDD_PADS `NUM_DVDD_PADS_OVERRIDE
+`else
+  `define NUM_DVDD_PADS 6
+`endif
+`ifdef NUM_DVSS_PADS_OVERRIDE
+  `define NUM_DVSS_PADS `NUM_DVSS_PADS_OVERRIDE
+`else
+  `define NUM_DVSS_PADS 6
+`endif
 
 `ifdef MAX_IO_CONFIG
   // Maximum bidir configuration - no input/analog pads

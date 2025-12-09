@@ -638,6 +638,15 @@ def generate_config_yaml(
         else:
             yaml_data[direction] = []
 
+    # Add power pad overrides if actual counts differ from RTL limits
+    # This is needed for sparse edge configs and configs with different power ratios
+    if density != Density.DEF:
+        rtl_limits = RTL_PAD_LIMITS[slot.name]
+        if vdd_idx != rtl_limits["dvdd"]:
+            yaml_data["VERILOG_DEFINES"].append(f"NUM_DVDD_PADS_OVERRIDE={vdd_idx}")
+        if vss_idx != rtl_limits["dvss"]:
+            yaml_data["VERILOG_DEFINES"].append(f"NUM_DVSS_PADS_OVERRIDE={vss_idx}")
+
     # Generate filename: slot_<size>_<density>_<edges>.yaml
     filename = f"slot_{slot.name}_{density.value}_{edges.value}.yaml"
     output_path = output_dir / filename
