@@ -56,6 +56,12 @@ class SlotInfo:
     io_analog: int = 0
     io_power_pairs: int = 0
 
+    # Configuration variant info (for generated configs)
+    density: str = "def"  # def, max, spc, num
+    edges: str = "all"  # all, top, lft, hor, ver, nwc, sec
+    config_name: str = ""  # Full config name like "1x1_max_all"
+
+
     # === Die size (total silicon) ===
     @property
     def die_width_mm(self) -> float:
@@ -143,6 +149,42 @@ SLOT_LABELS = {
     "0p5x1": "0.5×1 (Half Width)",
     "1x0p5": "1×0.5 (Half Height)",
     "0p5x0p5": "0.5×0.5 (Quarter)",
+}
+
+# Density mode descriptions
+DENSITY_DESCRIPTIONS = {
+    "def": "Default configuration with mixed pad types (bidir, input, analog)",
+    "max": "Maximum pad density - all pads converted to bidirectional",
+    "spc": "1x1 spacing - same pad spacing as the 1x1 slot",
+    "num": "1x1 pad count - same total pad count as the 1x1 slot",
+}
+
+DENSITY_LABELS = {
+    "def": "Default",
+    "max": "Maximum",
+    "spc": "1x1 Spacing",
+    "num": "1x1 Count",
+}
+
+# Edge configuration descriptions
+EDGE_DESCRIPTIONS = {
+    "all": "All four edges have IO pads",
+    "top": "Top (north) edge only - ideal for top-positioned slots",
+    "lft": "Left (west) edge only - ideal for left-positioned slots",
+    "hor": "Horizontal edges (north + south) - IO on top and bottom",
+    "ver": "Vertical edges (east + west) - IO on left and right",
+    "nwc": "Northwest corner (north + west) - ideal for NW corner slots",
+    "sec": "Southeast corner (south + east) - ideal for SE corner slots",
+}
+
+EDGE_LABELS = {
+    "all": "All Edges",
+    "top": "Top Only",
+    "lft": "Left Only",
+    "hor": "Horizontal",
+    "ver": "Vertical",
+    "nwc": "NW Corner",
+    "sec": "SE Corner",
 }
 
 
@@ -280,12 +322,37 @@ def download_images(output_dir: Path) -> bool:
 
 
 def parse_slot_yaml(yaml_path: Path) -> SlotInfo:
-    """Parse a slot YAML file and extract slot information."""
+    """Parse a slot YAML file and extract slot information.
+
+    Supports both legacy naming (slot_1x1.yaml) and new naming
+    (slot_1x1_max_all.yaml) conventions.
+    """
     with open(yaml_path) as f:
         data = yaml.safe_load(f)
 
-    # Extract slot name from filename (e.g., "slot_1x1.yaml" -> "1x1")
-    name = yaml_path.stem.replace("slot_", "")
+    # Extract slot name from filename
+    # New format: slot_{size}_{density}_{edges}.yaml (e.g., slot_1x1_max_all.yaml)
+    # Legacy format: slot_{size}.yaml (e.g., slot_1x1.yaml)
+    stem = yaml_path.stem.replace("slot_", "")
+    parts = stem.split("_")
+
+    # Determine if this is new or legacy format
+    valid_densities = {"def", "max", "spc", "num"}
+    valid_edges = {"all", "top", "lft", "hor", "ver", "nwc", "sec"}
+
+    if len(parts) >= 3 and parts[-2] in valid_densities and parts[-1] in valid_edges:
+        # New format: size_density_edges
+        name = "_".join(parts[:-2])  # e.g., "1x1" or "0p5x0p5"
+        density = parts[-2]
+        edges = parts[-1]
+        config_name = stem  # e.g., "1x1_max_all"
+    else:
+        # Legacy format: just size
+        name = stem
+        density = "def"
+        edges = "all"
+        config_name = f"{name}_def_all"
+
     label = SLOT_LABELS.get(name, name)
 
     # Parse DIE_AREA: [x1, y1, x2, y2]
@@ -329,23 +396,68 @@ def parse_slot_yaml(yaml_path: Path) -> SlotInfo:
         io_inputs=io_inputs,
         io_analog=io_analog,
         io_power_pairs=io_power_pairs,
+        density=density,
+        edges=edges,
+        config_name=config_name,
     )
 
 
 def load_all_slots(slots_dir: Path) -> dict[str, SlotInfo]:
-    """Load all slot configurations from a directory."""
+    """Load default slot configurations from a directory.
+
+    Returns only the base/default configs (slot_1x1.yaml, etc.) for
+    backward compatibility with existing documentation.
+    """
     slots = {}
     for yaml_file in sorted(slots_dir.glob("slot_*.yaml")):
+        # Skip generated directory files if any are in this folder
+        if "generated" in str(yaml_file):
+            continue
         slot = parse_slot_yaml(yaml_file)
         slots[slot.name] = slot
     return slots
 
 
-def generate_json(slots: dict[str, SlotInfo], output_path: Path) -> None:
+def load_all_configs(slots_dir: Path) -> dict[str, list[SlotInfo]]:
+    """Load all slot configurations including generated variants.
+
+    Returns a dict mapping slot size (e.g., "1x1") to a list of all
+    configuration variants for that slot.
+    """
+    configs: dict[str, list[SlotInfo]] = {}
+    generated_dir = slots_dir / "generated"
+
+    # Load generated configs
+    if generated_dir.exists():
+        for yaml_file in sorted(generated_dir.glob("slot_*.yaml")):
+            slot = parse_slot_yaml(yaml_file)
+            if slot.name not in configs:
+                configs[slot.name] = []
+            configs[slot.name].append(slot)
+
+    # Sort each slot's configs: def first, then alphabetically
+    def config_sort_key(s: SlotInfo) -> tuple[int, str]:
+        density_order = {"def": 0, "max": 1, "spc": 2, "num": 3}
+        edge_order = {"all": 0, "top": 1, "lft": 2, "hor": 3, "ver": 4, "nwc": 5, "sec": 6}
+        return (density_order.get(s.density, 9), edge_order.get(s.edges, 9))
+
+    for name in configs:
+        configs[name].sort(key=config_sort_key)
+
+    return configs
+
+
+def generate_json(
+    slots: dict[str, SlotInfo],
+    output_path: Path,
+    configs: dict[str, list[SlotInfo]] | None = None,
+) -> None:
     """Generate JSON file with slot information."""
     data = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "slots": {},
+        "density_options": DENSITY_DESCRIPTIONS,
+        "edge_options": EDGE_DESCRIPTIONS,
     }
 
     # Sort by slot order: 1x1 first
@@ -354,7 +466,7 @@ def generate_json(slots: dict[str, SlotInfo], output_path: Path) -> None:
 
     for name in sorted_names:
         slot = slots[name]
-        data["slots"][name] = {
+        slot_data = {
             "label": slot.label,
             "die": {
                 "width_um": slot.die_width_um,
@@ -388,6 +500,33 @@ def generate_json(slots: dict[str, SlotInfo], output_path: Path) -> None:
                 "pad_total": slot.pad_total,
             },
         }
+
+        # Add configuration variants if available
+        if configs and name in configs:
+            slot_data["configurations"] = []
+            for cfg in configs[name]:
+                slot_data["configurations"].append({
+                    "config_name": cfg.config_name,
+                    "density": cfg.density,
+                    "density_label": DENSITY_LABELS.get(cfg.density, cfg.density),
+                    "edges": cfg.edges,
+                    "edges_label": EDGE_LABELS.get(cfg.edges, cfg.edges),
+                    "core": {
+                        "width_um": cfg.core_width_um,
+                        "height_um": cfg.core_height_um,
+                        "area_mm2": round(cfg.core_area_mm2, 2),
+                    },
+                    "io": {
+                        "bidir": cfg.io_bidir,
+                        "inputs": cfg.io_inputs,
+                        "analog": cfg.io_analog,
+                        "power_pairs": cfg.io_power_pairs,
+                        "signal_total": cfg.io_signal_total,
+                        "pad_total": cfg.pad_total,
+                    },
+                })
+
+        data["slots"][name] = slot_data
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w") as f:
@@ -484,6 +623,7 @@ def generate_html(
     slots: dict[str, SlotInfo],
     output_path: Path,
     images_dir: Path | None = None,
+    configs: dict[str, list[SlotInfo]] | None = None,
 ) -> None:
     """Generate HTML file with slot information for GitHub Pages."""
     slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5"]
@@ -676,6 +816,49 @@ def generate_html(
     </div>
 
     <div class="section">
+        <h2>IO Configuration Options</h2>
+        <p>Each slot can be configured with different IO pad densities and edge arrangements to suit your design needs.</p>
+
+        <h3 style="margin-top: 25px;">Pad Density Modes</h3>
+        <p>Choose how many IO pads you need:</p>
+        <dl class="size-definitions">
+            <dt>Default (def)</dt>
+            <dd>Standard configuration with mixed pad types: bidirectional, input-only, and analog pads. Best for typical designs that need different pad characteristics.</dd>
+            <dt>Maximum (max)</dt>
+            <dd>Maximum number of pads possible for the slot size. All signal pads are bidirectional for maximum flexibility.</dd>
+            <dt>1x1 Spacing (spc)</dt>
+            <dd>Same pad spacing as the full 1x1 slot. Useful for maintaining consistent pad pitch across different slot sizes.</dd>
+            <dt>1x1 Count (num)</dt>
+            <dd>Same total pad count as the reference 1x1 slot. Ensures IO count compatibility when migrating designs.</dd>
+        </dl>
+
+        <h3 style="margin-top: 25px;">Edge Configurations</h3>
+        <p>Choose which edges have IO pads based on your slot position on the wafer:</p>
+        <dl class="size-definitions">
+            <dt>All Edges (all)</dt>
+            <dd>IO pads on all four sides. Standard configuration for standalone designs.</dd>
+            <dt>Top Only (top)</dt>
+            <dd>IO pads only on the north edge. Ideal for slots positioned at the bottom of a multi-slot arrangement.</dd>
+            <dt>Left Only (lft)</dt>
+            <dd>IO pads only on the west edge. Ideal for slots positioned on the right side.</dd>
+            <dt>Horizontal (hor)</dt>
+            <dd>IO pads on north and south edges only. For slots that will connect to neighbors on left and right.</dd>
+            <dt>Vertical (ver)</dt>
+            <dd>IO pads on east and west edges only. For slots that will connect to neighbors above and below.</dd>
+            <dt>NW Corner (nwc)</dt>
+            <dd>IO pads on north and west edges. For slots positioned in the southeast corner of an arrangement.</dd>
+            <dt>SE Corner (sec)</dt>
+            <dd>IO pads on south and east edges. For slots positioned in the northwest corner of an arrangement.</dd>
+        </dl>
+
+        <h3 style="margin-top: 25px;">Configuration Naming</h3>
+        <p>Configurations are named using the pattern: <code>{{slot}}_{{density}}_{{edges}}</code></p>
+        <p style="text-align: center; font-family: monospace; background: #f8f9fa; padding: 10px; border-radius: 4px; display: inline-block;">
+            Example: <strong>0p5x0p5_max_all</strong> = 0.5×0.5 slot, maximum pads, all edges
+        </p>
+    </div>
+
+    <div class="section">
         <h2>Available Slots</h2>
         <div class="slots-grid">
 """
@@ -756,7 +939,59 @@ def generate_html(
             <a href="slots.json" class="download-link">Download JSON</a>
         </div>
     </div>
+"""
 
+    # Add configuration variants section if configs are available
+    if configs:
+        html += """
+    <div class="section">
+        <h2>Configuration Variants</h2>
+        <p>Each slot size has multiple configuration variants. Click on a slot to expand its variants.</p>
+"""
+        for name in sorted_names:
+            if name not in configs:
+                continue
+            slot_configs = configs[name]
+            slot_label = SLOT_LABELS.get(name, name)
+
+            html += f"""
+        <details style="margin-bottom: 15px;">
+            <summary style="cursor: pointer; font-weight: bold; padding: 10px; background: #f5f5f5; border-radius: 4px;">{slot_label} - {len(slot_configs)} configurations</summary>
+            <table style="margin-top: 10px;">
+                <thead>
+                    <tr>
+                        <th>Config Name</th>
+                        <th>Density</th>
+                        <th>Edges</th>
+                        <th>Core Area</th>
+                        <th>Bidir</th>
+                        <th>Power</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+"""
+            for cfg in slot_configs:
+                density_label = DENSITY_LABELS.get(cfg.density, cfg.density)
+                edges_label = EDGE_LABELS.get(cfg.edges, cfg.edges)
+                html += f"""                    <tr>
+                        <td><code>{cfg.config_name}</code></td>
+                        <td>{density_label}</td>
+                        <td>{edges_label}</td>
+                        <td>{cfg.core_width_mm:.2f} × {cfg.core_height_mm:.2f}mm</td>
+                        <td>{cfg.io_bidir}</td>
+                        <td>{cfg.io_power_pairs * 2}</td>
+                        <td>{cfg.pad_total}</td>
+                    </tr>
+"""
+            html += """                </tbody>
+            </table>
+        </details>
+"""
+        html += """    </div>
+"""
+
+    html += """
     <div id="imageModal" class="modal" onclick="closeModal()">
         <span class="close">&times;</span>
         <img id="modalImage">
@@ -826,6 +1061,12 @@ def main():
 
     print(f"Found {len(slots)} slot configurations")
 
+    # Load all configuration variants
+    configs = load_all_configs(slots_dir)
+    total_configs = sum(len(v) for v in configs.values())
+    if configs:
+        print(f"Found {total_configs} configuration variants across {len(configs)} slot sizes")
+
     # Validate against pad geometry if available
     pdk_io_dir = script_dir / "gf180mcu" / "gf180mcuD" / "libs.ref" / "gf180mcu_fd_io" / "lef"
     if pdk_io_dir.exists():
@@ -848,9 +1089,9 @@ def main():
             print("Image download failed or skipped")
 
     # Generate outputs
-    generate_json(slots, output_dir / "slots.json")
+    generate_json(slots, output_dir / "slots.json", configs=configs)
     generate_markdown(slots, output_dir / "SLOTS.md")
-    generate_html(slots, output_dir / "index.html", images_dir=output_dir)
+    generate_html(slots, output_dir / "index.html", images_dir=output_dir, configs=configs)
 
     print(f"\nAll outputs written to: {output_dir}")
     return 0
