@@ -52,15 +52,28 @@ jobs:
           mkdir -p _site/images _site/thumbnails
 
           # Get the run ID to fetch artifacts from
+          # Try IO Configurations first (has config variant images), then CI (has base slot images)
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
             RUN_ID="${{ github.event.workflow_run.id }}"
           else
-            # For manual/push trigger, try current branch first, then main
+            # For manual/push trigger, try IO Configurations workflow first for config variant images
             BRANCH="${{ github.ref_name }}"
             RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=${BRANCH}&status=success&per_page=10" \
-              -q '.workflow_runs[] | select(.name == "CI") | .id' | head -1)
+              -q '.workflow_runs[] | select(.name == "IO Configurations") | .id' | head -1)
 
-            # Fallback to main if no runs on current branch
+            # Fallback to CI workflow on current branch
+            if [ -z "$RUN_ID" ]; then
+              RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=${BRANCH}&status=success&per_page=10" \
+                -q '.workflow_runs[] | select(.name == "CI") | .id' | head -1)
+            fi
+
+            # Fallback to IO Configurations on main
+            if [ -z "$RUN_ID" ]; then
+              RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=main&status=success&per_page=10" \
+                -q '.workflow_runs[] | select(.name == "IO Configurations") | .id' | head -1)
+            fi
+
+            # Final fallback to CI on main
             if [ -z "$RUN_ID" ]; then
               RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=main&status=success&per_page=10" \
                 -q '.workflow_runs[] | select(.name == "CI") | .id' | head -1)
@@ -68,7 +81,7 @@ jobs:
           fi
 
           if [ -z "$RUN_ID" ]; then
-            echo "No CI run found, skipping image download"
+            echo "No CI or IO Configurations run found, skipping image download"
             exit 0
           fi
 
