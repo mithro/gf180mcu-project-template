@@ -58,8 +58,16 @@ jobs:
           else
             # For manual/push trigger, try IO Configurations workflow first for config variant images
             BRANCH="${{ github.ref_name }}"
+
+            # Try successful IO Configurations on current branch
             RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=${BRANCH}&status=success&per_page=10" \
               -q '.workflow_runs[] | select(.name == "IO Configurations") | .id' | head -1)
+
+            # Try cancelled IO Configurations on current branch (may have partial artifacts)
+            if [ -z "$RUN_ID" ]; then
+              RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=${BRANCH}&per_page=20" \
+                -q '.workflow_runs[] | select(.name == "IO Configurations" and .conclusion == "cancelled") | .id' | head -1)
+            fi
 
             # Fallback to CI workflow on current branch
             if [ -z "$RUN_ID" ]; then
@@ -67,10 +75,16 @@ jobs:
                 -q '.workflow_runs[] | select(.name == "CI") | .id' | head -1)
             fi
 
-            # Fallback to IO Configurations on main
+            # Fallback to successful IO Configurations on main
             if [ -z "$RUN_ID" ]; then
               RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=main&status=success&per_page=10" \
                 -q '.workflow_runs[] | select(.name == "IO Configurations") | .id' | head -1)
+            fi
+
+            # Fallback to cancelled IO Configurations on main (may have partial artifacts)
+            if [ -z "$RUN_ID" ]; then
+              RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=main&per_page=20" \
+                -q '.workflow_runs[] | select(.name == "IO Configurations" and .conclusion == "cancelled") | .id' | head -1)
             fi
 
             # Final fallback to CI on main
