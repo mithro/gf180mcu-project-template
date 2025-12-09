@@ -626,14 +626,14 @@ def generate_config_yaml(
             verilog_defines.append(f"NUM_BIDIR_PADS_OVERRIDE={actual_bidir}")
 
     # Calculate core margins based on which edges have IO pads
-    # Edges WITH IO pads need full margin for routing
-    # Edges WITHOUT IO pads can have minimal margin (just seal ring + small buffer)
+    # Edges WITH IO pads use same margin as DEF config (442µm)
+    # Edges WITHOUT IO pads use minimal margin (just seal ring + small buffer)
     if density == Density.DEF:
         core_x1, core_y1 = slot.core_x1, slot.core_y1
         core_x2, core_y2 = slot.core_x2, slot.core_y2
     else:
-        # Margin for edges with IO pads (needs space for IO cells + routing)
-        margin_with_io = CORE_MARGIN_GENERATED
+        # Margin for edges with IO pads - same as DEF config
+        margin_with_io = CORE_MARGIN_DEFAULT
         # Margin for edges without IO pads (just seal ring + small buffer for routing)
         margin_no_io = SEAL_RING + 100  # ~126µm
 
