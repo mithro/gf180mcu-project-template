@@ -175,6 +175,130 @@ if { $::env(PDN_CORE_RING) == 1 } {
                 -layers "$::env(PDN_CORE_VERTICAL_LAYER) $::env(PDN_CORE_HORIZONTAL_LAYER)"
         }
 
+        # For partial padrings: Create explicit connections from core ring to IO pad power pins
+        # on edges that have pads. This bridges the gap between the ring and IO cells.
+        #
+        # The IO cells have DVDD/DVSS power pins on Metal3/4/5 at the edge facing the core.
+        # We add Metal3 stripes that extend from just inside the core ring to beyond the
+        # core boundary, overlapping with the IO cell power pins.
+        #
+        # Geometry:
+        # - IO cells are 350µm deep (from die edge towards core)
+        # - Core margin with IO is typically 442µm
+        # - Core ring is at core_offset (e.g., 20µm) inside core boundary
+        # - We need stripes from ring position to where IO cell power pins are (~380-440µm from die edge)
+
+        # Get die and core dimensions
+        set die_area [ord::get_db_block_die_area]
+        set die_llx [lindex $die_area 0]
+        set die_lly [lindex $die_area 1]
+        set die_urx [lindex $die_area 2]
+        set die_ury [lindex $die_area 3]
+
+        set core_area [ord::get_db_block_core_area]
+        set core_llx [lindex $core_area 0]
+        set core_lly [lindex $core_area 1]
+        set core_urx [lindex $core_area 2]
+        set core_ury [lindex $core_area 3]
+
+        # IO cell dimensions: 75µm wide x 350µm deep (when rotated, depth becomes the extent into chip)
+        set io_cell_depth 350
+
+        # Ring offset from core boundary
+        set ring_voffset $::env(PDN_CORE_RING_VOFFSET)
+        set ring_hoffset $::env(PDN_CORE_RING_HOFFSET)
+        set ring_vwidth $::env(PDN_CORE_RING_VWIDTH)
+        set ring_hwidth $::env(PDN_CORE_RING_HWIDTH)
+
+        # Stripe width for connections (matches ring width for good overlap)
+        set conn_stripe_width 10.0
+        # Stripe pitch (dense to ensure overlap with IO cell power pins)
+        set conn_stripe_pitch 75.0
+        # Number of stripes (enough to cover the IO cell power pin distribution)
+        set conn_stripe_count 5
+
+        # Define a grid for ring-to-pad connections
+        define_pdn_grid \
+            -name pad_conn_grid \
+            -starts_with POWER \
+            -voltage_domain CORE
+
+        # Add connection stripes for each edge that has pads
+        # West edge: horizontal stripes on Metal3
+        if { [info exists ::env(PAD_EDGE_WEST)] && $::env(PAD_EDGE_WEST) == "True" } {
+            puts "PDN: Adding ring-to-pad connections on WEST edge"
+            # Stripes run from inside the ring to the IO cell area
+            # Start: just inside the ring (core_llx - ring_voffset)
+            # End: where IO cell power pins are (die_llx + io_cell_depth - margin)
+            set west_start [expr {$core_llx - $ring_voffset - $ring_vwidth}]
+            set west_end [expr {$die_llx + $io_cell_depth}]
+
+            add_pdn_stripe \
+                -grid pad_conn_grid \
+                -layer Metal3 \
+                -width $conn_stripe_width \
+                -pitch $conn_stripe_pitch \
+                -offset [expr {$core_lly + 50}] \
+                -starts_with POWER \
+                -extend_to_boundary
+        }
+
+        # East edge: horizontal stripes on Metal3
+        if { [info exists ::env(PAD_EDGE_EAST)] && $::env(PAD_EDGE_EAST) == "True" } {
+            puts "PDN: Adding ring-to-pad connections on EAST edge"
+            add_pdn_stripe \
+                -grid pad_conn_grid \
+                -layer Metal3 \
+                -width $conn_stripe_width \
+                -pitch $conn_stripe_pitch \
+                -offset [expr {$core_lly + 50}] \
+                -starts_with POWER \
+                -extend_to_boundary
+        }
+
+        # North edge: vertical stripes on Metal2
+        if { [info exists ::env(PAD_EDGE_NORTH)] && $::env(PAD_EDGE_NORTH) == "True" } {
+            puts "PDN: Adding ring-to-pad connections on NORTH edge"
+            add_pdn_stripe \
+                -grid pad_conn_grid \
+                -layer Metal2 \
+                -width $conn_stripe_width \
+                -pitch $conn_stripe_pitch \
+                -offset [expr {$core_llx + 50}] \
+                -starts_with POWER \
+                -extend_to_boundary
+        }
+
+        # South edge: vertical stripes on Metal2
+        if { [info exists ::env(PAD_EDGE_SOUTH)] && $::env(PAD_EDGE_SOUTH) == "True" } {
+            puts "PDN: Adding ring-to-pad connections on SOUTH edge"
+            add_pdn_stripe \
+                -grid pad_conn_grid \
+                -layer Metal2 \
+                -width $conn_stripe_width \
+                -pitch $conn_stripe_pitch \
+                -offset [expr {$core_llx + 50}] \
+                -starts_with POWER \
+                -extend_to_boundary
+        }
+
+        # Connect the pad_conn_grid stripes to the core ring layers
+        add_pdn_connect \
+            -grid pad_conn_grid \
+            -layers "Metal2 Metal3"
+
+        if { [info exists ::env(PDN_CORE_VERTICAL_LAYER)] } {
+            add_pdn_connect \
+                -grid pad_conn_grid \
+                -layers "Metal2 $::env(PDN_CORE_VERTICAL_LAYER)"
+        }
+
+        if { [info exists ::env(PDN_CORE_HORIZONTAL_LAYER)] } {
+            add_pdn_connect \
+                -grid pad_conn_grid \
+                -layers "Metal3 $::env(PDN_CORE_HORIZONTAL_LAYER)"
+        }
+
     } else {
         throw APPLICATION "PDN_CORE_RING cannot be used when PDN_MULTILAYER is set to false."
     }
