@@ -659,16 +659,16 @@ def generate_config_yaml(
         "VERILOG_DEFINES": verilog_defines,
     }
 
-    # For partial padring configs (not all 4 edges have IO), use custom PDN script
-    # that creates the ring WITHOUT -connect_to_pads. This prevents ring segments
-    # on edges without pads from being removed as "floating".
-    # Power is connected via explicit stripes from the ring to pad power pins.
-    if edges != Edges.ALL:
-        # Path is relative to librelane/ (config.yaml's directory), not librelane/slots/
-        # because LibreLane uses the second config file's directory as the base
+    # Set PDN_CFG per slot config since config.yaml is loaded second and would override
+    # Path is relative to librelane/ (config.yaml's directory)
+    if edges == Edges.ALL:
+        # Full padring: use standard PDN script with -connect_to_pads
+        yaml_data["PDN_CFG"] = "dir::pdn_cfg.tcl"
+    else:
+        # Partial padring: use custom PDN script WITHOUT -connect_to_pads
+        # This prevents ring segments on edges without pads from being removed as "floating"
+        # Power is connected via explicit stripes from the ring to pad power pins
         yaml_data["PDN_CFG"] = "dir::pdn_partial.tcl"
-        # The PDN script determines which edges have pads by checking
-        # if PAD_SOUTH/EAST/NORTH/WEST lists are non-empty
 
     # Generate pads for each edge
     bidir_idx = 0
