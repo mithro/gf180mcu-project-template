@@ -205,10 +205,7 @@ if { $::env(PDN_CORE_RING) == 1 } {
         set core_urx [$core_rect xMax]
         set core_ury [$core_rect yMax]
 
-        # IO cell dimensions: 75µm wide x 350µm deep (when rotated, depth becomes the extent into chip)
-        set io_cell_depth 350
-
-        # Ring offset from core boundary
+        # Ring dimensions for reference
         set ring_voffset $::env(PDN_CORE_RING_VOFFSET)
         set ring_hoffset $::env(PDN_CORE_RING_HOFFSET)
         set ring_vwidth $::env(PDN_CORE_RING_VWIDTH)
@@ -250,60 +247,46 @@ if { $::env(PDN_CORE_RING) == 1 } {
         puts "PDN: Edges with pads - W:$has_west_pads E:$has_east_pads S:$has_south_pads N:$has_north_pads"
 
         # Add connection stripes for each edge that has pads
-        # West edge: horizontal stripes on Metal3
-        if { $has_west_pads } {
-            puts "PDN: Adding ring-to-pad connections on WEST edge"
-            # Stripes run from inside the ring to the IO cell area
-            # Start: just inside the ring (core_llx - ring_voffset)
-            # End: where IO cell power pins are (die_llx + io_cell_depth - margin)
-            set west_start [expr {$core_llx - $ring_voffset - $ring_vwidth}]
-            set west_end [expr {$die_llx + $io_cell_depth}]
+        # Note: add_pdn_stripe parameters (offset, width, pitch) are in MICRONS
+        # The offset is measured from the grid boundary (which defaults to die area)
 
+        # For horizontal stripes (Metal3): offset is from bottom
+        # For vertical stripes (Metal2): offset is from left
+        # Use offset matching the standard grid offset to align with main stripes
+        set stripe_offset 50.0
+
+        # West/East edges: horizontal stripes on Metal3
+        if { $has_west_pads || $has_east_pads } {
+            if { $has_west_pads } {
+                puts "PDN: Adding ring-to-pad connections on WEST edge"
+            }
+            if { $has_east_pads } {
+                puts "PDN: Adding ring-to-pad connections on EAST edge"
+            }
             add_pdn_stripe \
                 -grid pad_conn_grid \
                 -layer Metal3 \
                 -width $conn_stripe_width \
                 -pitch $conn_stripe_pitch \
-                -offset [expr {$core_lly + 50}] \
+                -offset $stripe_offset \
                 -starts_with POWER \
                 -extend_to_boundary
         }
 
-        # East edge: horizontal stripes on Metal3
-        if { $has_east_pads } {
-            puts "PDN: Adding ring-to-pad connections on EAST edge"
-            add_pdn_stripe \
-                -grid pad_conn_grid \
-                -layer Metal3 \
-                -width $conn_stripe_width \
-                -pitch $conn_stripe_pitch \
-                -offset [expr {$core_lly + 50}] \
-                -starts_with POWER \
-                -extend_to_boundary
-        }
-
-        # North edge: vertical stripes on Metal2
-        if { $has_north_pads } {
-            puts "PDN: Adding ring-to-pad connections on NORTH edge"
+        # North/South edges: vertical stripes on Metal2
+        if { $has_north_pads || $has_south_pads } {
+            if { $has_north_pads } {
+                puts "PDN: Adding ring-to-pad connections on NORTH edge"
+            }
+            if { $has_south_pads } {
+                puts "PDN: Adding ring-to-pad connections on SOUTH edge"
+            }
             add_pdn_stripe \
                 -grid pad_conn_grid \
                 -layer Metal2 \
                 -width $conn_stripe_width \
                 -pitch $conn_stripe_pitch \
-                -offset [expr {$core_llx + 50}] \
-                -starts_with POWER \
-                -extend_to_boundary
-        }
-
-        # South edge: vertical stripes on Metal2
-        if { $has_south_pads } {
-            puts "PDN: Adding ring-to-pad connections on SOUTH edge"
-            add_pdn_stripe \
-                -grid pad_conn_grid \
-                -layer Metal2 \
-                -width $conn_stripe_width \
-                -pitch $conn_stripe_pitch \
-                -offset [expr {$core_llx + 50}] \
+                -offset $stripe_offset \
                 -starts_with POWER \
                 -extend_to_boundary
         }
