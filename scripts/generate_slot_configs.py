@@ -664,8 +664,9 @@ def generate_config_yaml(
     # on edges without pads from being removed as "floating".
     # Power is connected via explicit stripes from the ring to pad power pins.
     if edges != Edges.ALL:
-        # Path is relative to librelane/slots/ where slot YAML files end up
-        yaml_data["PDN_CFG"] = "dir::../pdn_partial.tcl"
+        # Path is relative to librelane/ (config.yaml's directory), not librelane/slots/
+        # because LibreLane uses the second config file's directory as the base
+        yaml_data["PDN_CFG"] = "dir::pdn_partial.tcl"
         # The PDN script determines which edges have pads by checking
         # if PAD_SOUTH/EAST/NORTH/WEST lists are non-empty
 
