@@ -223,29 +223,26 @@ if { $::env(PDN_CORE_RING) == 1 } {
             -starts_with POWER \
             -voltage_domain CORE
 
-        # Determine which edges have pads by checking if PAD_* lists are non-empty
-        # These are defined in OpenLane's padring configuration
-        set has_west_pads 0
-        set has_east_pads 0
-        set has_north_pads 0
-        set has_south_pads 0
+        # Determine which edges have pads by comparing die/core margins
+        # Edges with IO pads have large margins (~350-450µm for IO cells)
+        # Edges without pads have small margins (~100-150µm)
+        # Threshold: 300µm distinguishes between the two
+        set pad_margin_threshold 300.0
 
-        if { [info exists ::env(PAD_WEST)] && [llength $::env(PAD_WEST)] > 0 } {
-            set has_west_pads 1
-            puts "PDN: WEST edge has [llength $::env(PAD_WEST)] pads"
-        }
-        if { [info exists ::env(PAD_EAST)] && [llength $::env(PAD_EAST)] > 0 } {
-            set has_east_pads 1
-            puts "PDN: EAST edge has [llength $::env(PAD_EAST)] pads"
-        }
-        if { [info exists ::env(PAD_NORTH)] && [llength $::env(PAD_NORTH)] > 0 } {
-            set has_north_pads 1
-            puts "PDN: NORTH edge has [llength $::env(PAD_NORTH)] pads"
-        }
-        if { [info exists ::env(PAD_SOUTH)] && [llength $::env(PAD_SOUTH)] > 0 } {
-            set has_south_pads 1
-            puts "PDN: SOUTH edge has [llength $::env(PAD_SOUTH)] pads"
-        }
+        set margin_west [expr {$core_llx - $die_llx}]
+        set margin_east [expr {$die_urx - $core_urx}]
+        set margin_south [expr {$core_lly - $die_lly}]
+        set margin_north [expr {$die_ury - $core_ury}]
+
+        set has_west_pads [expr {$margin_west > $pad_margin_threshold}]
+        set has_east_pads [expr {$margin_east > $pad_margin_threshold}]
+        set has_south_pads [expr {$margin_south > $pad_margin_threshold}]
+        set has_north_pads [expr {$margin_north > $pad_margin_threshold}]
+
+        puts "PDN: Die area: ($die_llx, $die_lly) to ($die_urx, $die_ury)"
+        puts "PDN: Core area: ($core_llx, $core_lly) to ($core_urx, $core_ury)"
+        puts "PDN: Margins - W:$margin_west E:$margin_east S:$margin_south N:$margin_north"
+        puts "PDN: Edges with pads - W:$has_west_pads E:$has_east_pads S:$has_south_pads N:$has_north_pads"
 
         # Add connection stripes for each edge that has pads
         # West edge: horizontal stripes on Metal3
