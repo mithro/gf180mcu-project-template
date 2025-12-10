@@ -188,6 +188,8 @@ if { $::env(PDN_CORE_RING) == 1 } {
         # - Core ring is at core_offset (e.g., 20µm) inside core boundary
         # - We need stripes from ring position to where IO cell power pins are (~380-440µm from die edge)
 
+        puts "PDN_PARTIAL: Starting ring-to-pad connection logic"
+
         # Get die and core dimensions
         set die_area [ord::get_db_block_die_area]
         set die_llx [lindex $die_area 0]
@@ -226,8 +228,9 @@ if { $::env(PDN_CORE_RING) == 1 } {
         # Determine which edges have pads by comparing die/core margins
         # Edges with IO pads have large margins (~350-450µm for IO cells)
         # Edges without pads have small margins (~100-150µm)
-        # Threshold: 300µm distinguishes between the two
-        set pad_margin_threshold 300.0
+        # GF180MCU uses database units of 2000 per µm (0.5nm resolution)
+        # Threshold: 300µm = 300 * 2000 = 600000 database units
+        set pad_margin_threshold 600000.0
 
         set margin_west [expr {$core_llx - $die_llx}]
         set margin_east [expr {$die_urx - $core_urx}]
