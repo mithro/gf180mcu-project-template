@@ -10,8 +10,8 @@ CORE_AREA: [442, 130, 1806, 4680]
 VERILOG_DEFINES: ['SLOT_0P5X1', 'MAX_IO_CONFIG', 'NUM_BIDIR_PADS_OVERRIDE=61', 'NUM_DVDD_PADS_OVERRIDE=5', 'NUM_DVSS_PADS_OVERRIDE=5']
 
 # PDN configuration for partial padring
-# Disable pad connection to prevent ring removal on edges without pads
-PDN_CORE_RING_CONNECT_TO_PADS: False
+# Use custom PDN script that creates ring without -connect_to_pads
+PDN_CFG: dir::pdn_partial.tcl
 
 # Pad instances for the padring
 PAD_SOUTH: []
