@@ -11,7 +11,7 @@ VERILOG_DEFINES: ['SLOT_0P5X1', 'MAX_IO_CONFIG', 'NUM_BIDIR_PADS_OVERRIDE=96', '
 
 # PDN configuration for partial padring
 # Custom PDN creates ring-to-pad connections only on edges with pads
-PDN_CFG: dir::pdn_partial.tcl
+PDN_CFG: dir::../pdn_partial.tcl
 
 # Pad instances for the padring
 PAD_SOUTH: []
