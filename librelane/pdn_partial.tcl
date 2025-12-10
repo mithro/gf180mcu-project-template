@@ -223,9 +223,33 @@ if { $::env(PDN_CORE_RING) == 1 } {
             -starts_with POWER \
             -voltage_domain CORE
 
+        # Determine which edges have pads by checking if PAD_* lists are non-empty
+        # These are defined in OpenLane's padring configuration
+        set has_west_pads 0
+        set has_east_pads 0
+        set has_north_pads 0
+        set has_south_pads 0
+
+        if { [info exists ::env(PAD_WEST)] && [llength $::env(PAD_WEST)] > 0 } {
+            set has_west_pads 1
+            puts "PDN: WEST edge has [llength $::env(PAD_WEST)] pads"
+        }
+        if { [info exists ::env(PAD_EAST)] && [llength $::env(PAD_EAST)] > 0 } {
+            set has_east_pads 1
+            puts "PDN: EAST edge has [llength $::env(PAD_EAST)] pads"
+        }
+        if { [info exists ::env(PAD_NORTH)] && [llength $::env(PAD_NORTH)] > 0 } {
+            set has_north_pads 1
+            puts "PDN: NORTH edge has [llength $::env(PAD_NORTH)] pads"
+        }
+        if { [info exists ::env(PAD_SOUTH)] && [llength $::env(PAD_SOUTH)] > 0 } {
+            set has_south_pads 1
+            puts "PDN: SOUTH edge has [llength $::env(PAD_SOUTH)] pads"
+        }
+
         # Add connection stripes for each edge that has pads
         # West edge: horizontal stripes on Metal3
-        if { [info exists ::env(PAD_EDGE_WEST)] && $::env(PAD_EDGE_WEST) == "True" } {
+        if { $has_west_pads } {
             puts "PDN: Adding ring-to-pad connections on WEST edge"
             # Stripes run from inside the ring to the IO cell area
             # Start: just inside the ring (core_llx - ring_voffset)
@@ -244,7 +268,7 @@ if { $::env(PDN_CORE_RING) == 1 } {
         }
 
         # East edge: horizontal stripes on Metal3
-        if { [info exists ::env(PAD_EDGE_EAST)] && $::env(PAD_EDGE_EAST) == "True" } {
+        if { $has_east_pads } {
             puts "PDN: Adding ring-to-pad connections on EAST edge"
             add_pdn_stripe \
                 -grid pad_conn_grid \
@@ -257,7 +281,7 @@ if { $::env(PDN_CORE_RING) == 1 } {
         }
 
         # North edge: vertical stripes on Metal2
-        if { [info exists ::env(PAD_EDGE_NORTH)] && $::env(PAD_EDGE_NORTH) == "True" } {
+        if { $has_north_pads } {
             puts "PDN: Adding ring-to-pad connections on NORTH edge"
             add_pdn_stripe \
                 -grid pad_conn_grid \
@@ -270,7 +294,7 @@ if { $::env(PDN_CORE_RING) == 1 } {
         }
 
         # South edge: vertical stripes on Metal2
-        if { [info exists ::env(PAD_EDGE_SOUTH)] && $::env(PAD_EDGE_SOUTH) == "True" } {
+        if { $has_south_pads } {
             puts "PDN: Adding ring-to-pad connections on SOUTH edge"
             add_pdn_stripe \
                 -grid pad_conn_grid \

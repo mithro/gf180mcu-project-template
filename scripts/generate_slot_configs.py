@@ -665,11 +665,8 @@ def generate_config_yaml(
     # Power is connected via explicit stripes from the ring to pad power pins.
     if edges != Edges.ALL:
         yaml_data["PDN_CFG"] = "dir::pdn_partial.tcl"
-        # Tell PDN script which edges have pads (for selective ring-to-pad connections)
-        yaml_data["PAD_EDGE_NORTH"] = "north" in active_edges
-        yaml_data["PAD_EDGE_SOUTH"] = "south" in active_edges
-        yaml_data["PAD_EDGE_EAST"] = "east" in active_edges
-        yaml_data["PAD_EDGE_WEST"] = "west" in active_edges
+        # The PDN script determines which edges have pads by checking
+        # if PAD_SOUTH/EAST/NORTH/WEST lists are non-empty
 
     # Generate pads for each edge
     bidir_idx = 0
@@ -747,10 +744,6 @@ def generate_config_yaml(
             f.write("# PDN configuration for partial padring\n")
             f.write("# Custom PDN creates ring-to-pad connections only on edges with pads\n")
             f.write(f"PDN_CFG: {yaml_data['PDN_CFG']}\n")
-            f.write(f"PAD_EDGE_NORTH: {yaml_data['PAD_EDGE_NORTH']}\n")
-            f.write(f"PAD_EDGE_SOUTH: {yaml_data['PAD_EDGE_SOUTH']}\n")
-            f.write(f"PAD_EDGE_EAST: {yaml_data['PAD_EDGE_EAST']}\n")
-            f.write(f"PAD_EDGE_WEST: {yaml_data['PAD_EDGE_WEST']}\n")
 
         f.write(f"\n")
         f.write("# Pad instances for the padring\n")
