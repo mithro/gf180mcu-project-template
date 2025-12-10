@@ -190,18 +190,20 @@ if { $::env(PDN_CORE_RING) == 1 } {
 
         puts "PDN_PARTIAL: Starting ring-to-pad connection logic"
 
-        # Get die and core dimensions
-        set die_area [ord::get_db_block_die_area]
-        set die_llx [lindex $die_area 0]
-        set die_lly [lindex $die_area 1]
-        set die_urx [lindex $die_area 2]
-        set die_ury [lindex $die_area 3]
+        # Get die and core dimensions using proper ODB API
+        set block [ord::get_db_block]
 
-        set core_area [ord::get_db_block_core_area]
-        set core_llx [lindex $core_area 0]
-        set core_lly [lindex $core_area 1]
-        set core_urx [lindex $core_area 2]
-        set core_ury [lindex $core_area 3]
+        set die_rect [$block getDieArea]
+        set die_llx [$die_rect xMin]
+        set die_lly [$die_rect yMin]
+        set die_urx [$die_rect xMax]
+        set die_ury [$die_rect yMax]
+
+        set core_rect [$block getCoreArea]
+        set core_llx [$core_rect xMin]
+        set core_lly [$core_rect yMin]
+        set core_urx [$core_rect xMax]
+        set core_ury [$core_rect yMax]
 
         # IO cell dimensions: 75µm wide x 350µm deep (when rotated, depth becomes the extent into chip)
         set io_cell_depth 350
