@@ -658,6 +658,24 @@ def generate_html(
         h1 {{ text-align: center; margin-bottom: 10px; }}
         .subtitle {{ text-align: center; color: #666; margin-bottom: 30px; }}
         .subtitle a {{ color: #0066cc; text-decoration: none; }}
+        .section-group {{
+            max-width: 1200px;
+            margin: 0 auto 30px auto;
+        }}
+        .section-group-title {{
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+            padding: 10px;
+        }}
+        .section-divider {{
+            max-width: 1200px;
+            margin: 40px auto;
+            border: 0;
+            border-top: 2px solid #ddd;
+        }}
         .section {{
             background: white;
             border-radius: 8px;
@@ -668,6 +686,7 @@ def generate_html(
         }}
         .section h2 {{ margin: 0 0 20px 0; text-align: center; }}
         .section > p {{ text-align: center; color: #555; margin-bottom: 20px; }}
+        .section > p.left-align {{ text-align: left; }}
         .size-diagram {{
             background: #f8f9fa;
             border: 1px solid #e0e0e0;
@@ -781,86 +800,12 @@ def generate_html(
         Generated: {generated_time}
     </p>
 
-    <div class="section">
-        <h2>Understanding Slot Dimensions</h2>
-        <p>Each slot has three important size measurements:</p>
-        <div class="size-diagram">
-            <pre>
-┌─────────────────────────────────────────┐
-│             SEAL RING (26µm)            │
-│  ┌───────────────────────────────────┐  │
-│  │           IO RING                 │  │
-│  │  ┌─────────────────────────────┐  │  │
-│  │  │                             │  │  │
-│  │  │        CORE AREA            │  │  │
-│  │  │    (Your Design Area)       │  │  │
-│  │  │                             │  │  │
-│  │  └─────────────────────────────┘  │  │
-│  │                                   │  │
-│  └───────────────────────────────────┘  │
-│                                         │
-└─────────────────────────────────────────┘
- ◄─────────── DIE SIZE ──────────────────►
-   ◄────── USABLE SILICON ────────────►
-      ◄────── CORE SIZE ───────────►
-            </pre>
-        </div>
-        <dl class="size-definitions">
-            <dt>Die Size</dt>
-            <dd>The actual physical silicon dimensions. This is the total area of the chip including all peripheral structures.</dd>
-            <dt>Usable Silicon</dt>
-            <dd>The die size minus the seal ring (26µm on each edge). The seal ring protects the chip from damage during dicing and provides a moisture barrier. This is the area available inside the seal ring.</dd>
-            <dt>Core Area</dt>
-            <dd>The usable design area inside the IO ring. This is where your digital logic, analog circuits, and other design elements are placed. The IO ring contains the pad cells that connect your design to the outside world.</dd>
-        </dl>
-    </div>
+    <div class="section-group">
+        <div class="section-group-title">Standard Slot Configurations</div>
 
-    <div class="section">
-        <h2>IO Configuration Options</h2>
-        <p>Each slot can be configured with different IO pad densities and edge arrangements to suit your design needs.</p>
-
-        <h3 style="margin-top: 25px;">Pad Density Modes</h3>
-        <p>Choose how many IO pads you need:</p>
-        <dl class="size-definitions">
-            <dt>Default (def)</dt>
-            <dd>Standard configuration with mixed pad types: bidirectional, input-only, and analog pads. Best for typical designs that need different pad characteristics.</dd>
-            <dt>Maximum (max)</dt>
-            <dd>Maximum number of pads possible for the slot size. All signal pads are bidirectional for maximum flexibility.</dd>
-            <dt>1x1 Spacing (spc)</dt>
-            <dd>Same pad spacing as the full 1x1 slot. Useful for maintaining consistent pad pitch across different slot sizes.</dd>
-            <dt>1x1 Count (num)</dt>
-            <dd>Same total pad count as the reference 1x1 slot. Ensures IO count compatibility when migrating designs.</dd>
-        </dl>
-
-        <h3 style="margin-top: 25px;">Edge Configurations</h3>
-        <p>Choose which edges have IO pads based on your slot position on the wafer:</p>
-        <dl class="size-definitions">
-            <dt>All Edges (all)</dt>
-            <dd>IO pads on all four sides. Standard configuration for standalone designs.</dd>
-            <dt>Top Only (top)</dt>
-            <dd>IO pads only on the north edge. Ideal for slots positioned at the bottom of a multi-slot arrangement.</dd>
-            <dt>Left Only (lft)</dt>
-            <dd>IO pads only on the west edge. Ideal for slots positioned on the right side.</dd>
-            <dt>Horizontal (hor)</dt>
-            <dd>IO pads on north and south edges only. For slots that will connect to neighbors on left and right.</dd>
-            <dt>Vertical (ver)</dt>
-            <dd>IO pads on east and west edges only. For slots that will connect to neighbors above and below.</dd>
-            <dt>NW Corner (nwc)</dt>
-            <dd>IO pads on north and west edges. For slots positioned in the southeast corner of an arrangement.</dd>
-            <dt>SE Corner (sec)</dt>
-            <dd>IO pads on south and east edges. For slots positioned in the northwest corner of an arrangement.</dd>
-        </dl>
-
-        <h3 style="margin-top: 25px;">Configuration Naming</h3>
-        <p>Configurations are named using the pattern: <code>{{slot}}_{{density}}_{{edges}}</code></p>
-        <p style="text-align: center; font-family: monospace; background: #f8f9fa; padding: 10px; border-radius: 4px; display: inline-block;">
-            Example: <strong>0p5x0p5_max_all</strong> = 0.5×0.5 slot, maximum pads, all edges
-        </p>
-    </div>
-
-    <div class="section">
-        <h2>Available Slots</h2>
-        <div class="slots-grid">
+        <div class="section">
+            <h2>Available Slots</h2>
+            <div class="slots-grid">
 """
 
     for name in sorted_names:
@@ -893,27 +838,27 @@ def generate_html(
 """
 
     html += """        </div>
-    </div>
+        </div>
 
-    <div class="section">
-        <h2>Detailed Specifications</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Slot</th>
-                    <th>Die Size</th>
-                    <th>Usable Silicon</th>
-                    <th>Core Area</th>
-                    <th>IO Overhead</th>
-                    <th>Bidir</th>
-                    <th>Inputs</th>
-                    <th>Analog</th>
-                    <th>Total IOs</th>
-                    <th>Power</th>
-                    <th>Total Pads</th>
-                </tr>
-            </thead>
-            <tbody>
+        <div class="section">
+            <h2>Detailed Specifications</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Slot</th>
+                        <th>Die Size</th>
+                        <th>Usable Silicon</th>
+                        <th>Core Area</th>
+                        <th>IO Overhead</th>
+                        <th>Bidir</th>
+                        <th>Inputs</th>
+                        <th>Analog</th>
+                        <th>Total IOs</th>
+                        <th>Power</th>
+                        <th>Total Pads</th>
+                    </tr>
+                </thead>
+                <tbody>
 """
 
     for name in sorted_names:
@@ -934,19 +879,102 @@ def generate_html(
 """
 
     html += """            </tbody>
-        </table>
-        <div style="text-align: center;">
-            <a href="slots.json" class="download-link">Download JSON</a>
+            </table>
+            <div style="text-align: center;">
+                <a href="slots.json" class="download-link">Download JSON</a>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Understanding Slot Dimensions</h2>
+            <p>Each slot has three important size measurements:</p>
+            <div class="size-diagram">
+                <pre>
+┌─────────────────────────────────────────┐
+│             SEAL RING (26µm)            │
+│  ┌───────────────────────────────────┐  │
+│  │           IO RING                 │  │
+│  │  ┌─────────────────────────────┐  │  │
+│  │  │                             │  │  │
+│  │  │        CORE AREA            │  │  │
+│  │  │    (Your Design Area)       │  │  │
+│  │  │                             │  │  │
+│  │  └─────────────────────────────┘  │  │
+│  │                                   │  │
+│  └───────────────────────────────────┘  │
+│                                         │
+└─────────────────────────────────────────┘
+ ◄─────────── DIE SIZE ──────────────────►
+   ◄────── USABLE SILICON ────────────►
+      ◄────── CORE SIZE ───────────►
+                </pre>
+            </div>
+            <dl class="size-definitions">
+                <dt>Die Size</dt>
+                <dd>The actual physical silicon dimensions. This is the total area of the chip including all peripheral structures.</dd>
+                <dt>Usable Silicon</dt>
+                <dd>The die size minus the seal ring (26µm on each edge). The seal ring protects the chip from damage during dicing and provides a moisture barrier. This is the area available inside the seal ring.</dd>
+                <dt>Core Area</dt>
+                <dd>The usable design area inside the IO ring. This is where your digital logic, analog circuits, and other design elements are placed. The IO ring contains the pad cells that connect your design to the outside world.</dd>
+            </dl>
         </div>
     </div>
+
+    <hr class="section-divider">
+
+    <div class="section-group">
+        <div class="section-group-title">Advanced Slot Configurations</div>
+
+        <div class="section">
+            <h2>IO Configuration Options</h2>
+            <p>Each slot can be configured with different IO pad densities and edge arrangements to suit your design needs.</p>
+
+            <h3 style="margin-top: 25px;">Pad Density Modes</h3>
+            <p class="left-align">Choose how many IO pads you need:</p>
+            <dl class="size-definitions">
+                <dt>Default (def)</dt>
+                <dd>Standard configuration with mixed pad types: bidirectional, input-only, and analog pads. Best for typical designs that need different pad characteristics.</dd>
+                <dt>Maximum (max)</dt>
+                <dd>Maximum number of pads possible for the slot size. All signal pads are bidirectional for maximum flexibility.</dd>
+                <dt>1x1 Spacing (spc)</dt>
+                <dd>Same pad spacing as the full 1x1 slot. Useful for maintaining consistent pad pitch across different slot sizes.</dd>
+                <dt>1x1 Count (num)</dt>
+                <dd>Same total pad count as the reference 1x1 slot. Ensures IO count compatibility when migrating designs.</dd>
+            </dl>
+
+            <h3 style="margin-top: 25px;">Edge Configurations</h3>
+            <p class="left-align">Choose which edges have IO pads based on your slot position on the wafer:</p>
+            <dl class="size-definitions">
+                <dt>All Edges (all)</dt>
+                <dd>IO pads on all four sides. Standard configuration for standalone designs.</dd>
+                <dt>Top Only (top)</dt>
+                <dd>IO pads only on the north edge. Ideal for slots positioned at the bottom of a multi-slot arrangement.</dd>
+                <dt>Left Only (lft)</dt>
+                <dd>IO pads only on the west edge. Ideal for slots positioned on the right side.</dd>
+                <dt>Horizontal (hor)</dt>
+                <dd>IO pads on north and south edges only. For slots that will connect to neighbors on left and right.</dd>
+                <dt>Vertical (ver)</dt>
+                <dd>IO pads on east and west edges only. For slots that will connect to neighbors above and below.</dd>
+                <dt>NW Corner (nwc)</dt>
+                <dd>IO pads on north and west edges. For slots positioned in the southeast corner of an arrangement.</dd>
+                <dt>SE Corner (sec)</dt>
+                <dd>IO pads on south and east edges. For slots positioned in the northwest corner of an arrangement.</dd>
+            </dl>
+
+            <h3 style="margin-top: 25px;">Configuration Naming</h3>
+            <p>Configurations are named using the pattern: <code>{{slot}}_{{density}}_{{edges}}</code></p>
+            <p style="text-align: center; font-family: monospace; background: #f8f9fa; padding: 10px; border-radius: 4px; display: inline-block;">
+                Example: <strong>0p5x0p5_max_all</strong> = 0.5×0.5 slot, maximum pads, all edges
+            </p>
+        </div>
 """
 
     # Add configuration variants section if configs are available
     if configs:
         html += """
-    <div class="section">
-        <h2>Configuration Variants</h2>
-        <p>Each slot size has multiple configuration variants. Click on a slot to expand its variants. Click on images to view full size.</p>
+        <div class="section">
+            <h2>Configuration Variants</h2>
+            <p>Each slot size has multiple configuration variants. Click on a slot to expand its variants. Click on images to view full size.</p>
 """
         for name in sorted_names:
             if name not in configs:
@@ -1000,10 +1028,12 @@ def generate_html(
             </table>
         </details>
 """
-        html += """    </div>
+        html += """        </div>
 """
 
-    html += """
+    # Close the Advanced Slot Configurations section-group
+    html += """    </div>
+
     <div id="imageModal" class="modal" onclick="closeModal()">
         <span class="close">&times;</span>
         <img id="modalImage">
