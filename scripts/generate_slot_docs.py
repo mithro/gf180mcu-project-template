@@ -247,9 +247,9 @@ def generate_block_diagram_svg(slot: "SlotInfo", size: int = 80) -> str:
     # Bottom/South edge (SVG y increases downward, so this is from top in SVG terms)
     core_y_from_bottom = io_ring_thickness if edges["south"] else seal_margin
 
-    # Die position (centered horizontally, anchored at bottom)
-    die_x = (canvas_w - die_w) // 2
-    die_y = canvas_h - die_h  # Anchor at bottom of canvas
+    # Die position (left and top aligned)
+    die_x = 0
+    die_y = 0
 
     # Core position relative to canvas
     core_canvas_x = die_x + core_x
