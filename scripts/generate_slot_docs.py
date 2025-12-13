@@ -187,6 +187,132 @@ EDGE_LABELS = {
     "sec": "SE Corner",
 }
 
+# Reference dimensions for 1x1 slot (used as canvas size for all diagrams)
+REF_1X1_DIE_WIDTH_UM = 3932
+REF_1X1_DIE_HEIGHT_UM = 5122
+
+# Mapping of edge codes to which edges have IO pads
+EDGE_HAS_PADS = {
+    "all": {"north": True, "south": True, "east": True, "west": True},
+    "top": {"north": True, "south": False, "east": False, "west": False},
+    "lft": {"north": False, "south": False, "east": False, "west": True},
+    "hor": {"north": True, "south": True, "east": False, "west": False},
+    "ver": {"north": False, "south": False, "east": True, "west": True},
+    "nwc": {"north": True, "south": False, "east": False, "west": True},
+    "sec": {"north": False, "south": True, "east": True, "west": False},
+}
+
+
+def generate_block_diagram_svg(slot: "SlotInfo", size: int = 80) -> str:
+    """Generate an inline SVG block diagram for a slot configuration.
+
+    The diagram shows:
+    - Gray background representing the 1x1 reference slot area
+    - Silicon die area (lighter gray)
+    - IO ring on edges that have pads (cyan)
+    - Core area (green)
+
+    All diagrams use the same canvas size (1x1 proportions) so smaller
+    slots show their relative size within the 1x1 space.
+
+    Args:
+        slot: SlotInfo object with die/core dimensions and edge config
+        size: Width of the SVG in pixels (height scales proportionally)
+
+    Returns:
+        Inline SVG string
+    """
+    # Canvas represents the full 1x1 slot area
+    canvas_w = REF_1X1_DIE_WIDTH_UM
+    canvas_h = REF_1X1_DIE_HEIGHT_UM
+
+    # Die dimensions
+    die_w = slot.die_width_um
+    die_h = slot.die_height_um
+
+    # Core dimensions and position within die
+    core_w = slot.core_width_um
+    core_h = slot.core_height_um
+
+    # Calculate core offsets based on which edges have pads
+    edges = EDGE_HAS_PADS.get(slot.edges, EDGE_HAS_PADS["all"])
+
+    # IO ring thickness (when pads are present) is ~442µm, seal ring margin is ~130µm
+    io_ring_thickness = 442
+    seal_margin = 130
+
+    # Calculate core position within die
+    # Left/West edge
+    core_x = io_ring_thickness if edges["west"] else seal_margin
+    # Bottom/South edge (SVG y increases downward, so this is from top in SVG terms)
+    core_y_from_bottom = io_ring_thickness if edges["south"] else seal_margin
+
+    # Die position (centered horizontally, anchored at bottom)
+    die_x = (canvas_w - die_w) // 2
+    die_y = canvas_h - die_h  # Anchor at bottom of canvas
+
+    # Core position relative to canvas
+    core_canvas_x = die_x + core_x
+    core_canvas_y = die_y + (die_h - core_h - core_y_from_bottom)
+
+    # SVG viewBox uses canvas dimensions
+    aspect = canvas_h / canvas_w
+    svg_height = int(size * aspect)
+
+    # Colors
+    bg_color = "#e0e0e0"  # Light gray for empty 1x1 space
+    die_color = "#b0b0b0"  # Medium gray for silicon die
+    io_color = "#00d4d4"  # Cyan for IO ring
+    core_color = "#228b22"  # Forest green for core area
+    stroke_color = "#333333"  # Dark stroke
+
+    # Build SVG
+    svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{svg_height}" viewBox="0 0 {canvas_w} {canvas_h}" style="border: 1px solid #ccc; border-radius: 2px;">
+  <!-- Background (1x1 reference area) -->
+  <rect x="0" y="0" width="{canvas_w}" height="{canvas_h}" fill="{bg_color}"/>
+
+  <!-- Die area (silicon) -->
+  <rect x="{die_x}" y="{die_y}" width="{die_w}" height="{die_h}" fill="{die_color}" stroke="{stroke_color}" stroke-width="20"/>
+'''
+
+    # Draw IO ring segments on edges that have pads
+    # IO ring is between die edge and core edge
+    if edges["north"]:
+        # Top edge IO ring
+        io_y = die_y
+        io_h = die_h - core_h - core_y_from_bottom
+        svg += f'  <rect x="{die_x}" y="{io_y}" width="{die_w}" height="{io_h}" fill="{io_color}"/>\n'
+
+    if edges["south"]:
+        # Bottom edge IO ring
+        io_y = die_y + die_h - (io_ring_thickness if edges["south"] else seal_margin)
+        io_h = io_ring_thickness if edges["south"] else seal_margin
+        svg += f'  <rect x="{die_x}" y="{io_y}" width="{die_w}" height="{io_h}" fill="{io_color}"/>\n'
+
+    if edges["west"]:
+        # Left edge IO ring (between top and bottom IO if present)
+        io_top = die_y + (io_ring_thickness if edges["north"] else seal_margin)
+        io_bottom = die_y + die_h - (io_ring_thickness if edges["south"] else seal_margin)
+        io_h = io_bottom - io_top
+        if io_h > 0:
+            svg += f'  <rect x="{die_x}" y="{io_top}" width="{io_ring_thickness}" height="{io_h}" fill="{io_color}"/>\n'
+
+    if edges["east"]:
+        # Right edge IO ring
+        io_top = die_y + (io_ring_thickness if edges["north"] else seal_margin)
+        io_bottom = die_y + die_h - (io_ring_thickness if edges["south"] else seal_margin)
+        io_h = io_bottom - io_top
+        io_x = die_x + die_w - io_ring_thickness
+        if io_h > 0:
+            svg += f'  <rect x="{io_x}" y="{io_top}" width="{io_ring_thickness}" height="{io_h}" fill="{io_color}"/>\n'
+
+    # Draw core area
+    svg += f'''  <!-- Core area -->
+  <rect x="{core_canvas_x}" y="{core_canvas_y}" width="{core_w}" height="{core_h}" fill="{core_color}" stroke="{stroke_color}" stroke-width="10"/>
+</svg>'''
+
+    return svg
+
 
 def parse_pad_lef(lef_dir: Path) -> dict[str, tuple[float, float]]:
     """Parse LEF files to get pad cell dimensions."""
@@ -988,6 +1114,7 @@ def generate_html(
             <table style="margin-top: 10px;">
                 <thead>
                     <tr>
+                        <th>Diagram</th>
                         <th>Image</th>
                         <th>Config Name</th>
                         <th>Density</th>
@@ -1004,6 +1131,9 @@ def generate_html(
                 density_label = DENSITY_LABELS.get(cfg.density, cfg.density)
                 edges_label = EDGE_LABELS.get(cfg.edges, cfg.edges)
 
+                # Generate block diagram SVG
+                diagram_svg = generate_block_diagram_svg(cfg, size=60)
+
                 # Check for config image (try white background first)
                 img_cell = ""
                 config_thumb = get_image_path(cfg.config_name, "white")
@@ -1014,6 +1144,7 @@ def generate_html(
                     img_cell = '<span style="color: #999;">-</span>'
 
                 html += f"""                    <tr>
+                        <td style="text-align: center;">{diagram_svg}</td>
                         <td style="text-align: center;">{img_cell}</td>
                         <td><code>{cfg.config_name}</code></td>
                         <td>{density_label}</td>
