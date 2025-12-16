@@ -292,17 +292,18 @@ if { $::env(PDN_CORE_RING) == 1 } {
         }
 
         # Connect the pad_conn_grid stripes to the core ring layers
+        # Note: Only add connections between DIFFERENT layers to avoid PDN-0003 errors
         add_pdn_connect \
             -grid pad_conn_grid \
             -layers "Metal2 Metal3"
 
-        if { [info exists ::env(PDN_CORE_VERTICAL_LAYER)] } {
+        if { [info exists ::env(PDN_CORE_VERTICAL_LAYER)] && $::env(PDN_CORE_VERTICAL_LAYER) ne "Metal2" } {
             add_pdn_connect \
                 -grid pad_conn_grid \
                 -layers "Metal2 $::env(PDN_CORE_VERTICAL_LAYER)"
         }
 
-        if { [info exists ::env(PDN_CORE_HORIZONTAL_LAYER)] } {
+        if { [info exists ::env(PDN_CORE_HORIZONTAL_LAYER)] && $::env(PDN_CORE_HORIZONTAL_LAYER) ne "Metal3" } {
             add_pdn_connect \
                 -grid pad_conn_grid \
                 -layers "Metal3 $::env(PDN_CORE_HORIZONTAL_LAYER)"
