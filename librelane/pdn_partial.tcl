@@ -3,10 +3,10 @@
 # PDN configuration for partial padring designs
 # (IO pads on fewer than 4 edges)
 #
-# This script creates the core ring WITHOUT -connect_to_pads to avoid
-# the issue where ring segments on edges without pads are removed as
-# "floating". Power is delivered through IO filler cells which have
-# DVDD/DVSS power pins that connect to the ring via metal overlap.
+# For partial padrings, power enters through IO cells on edges with pads.
+# The core ring uses -connect_to_pads to connect to those IO cells.
+# Ring segments on edges without pads may be removed (they're truly floating
+# with no power source), but the stripe grid distributes power across the chip.
 #
 # Adapted from pdn_cfg.tcl
 #
@@ -128,14 +128,14 @@ if { $::env(PDN_ENABLE_RAILS) == 1 } {
 
 
 # Adds the core ring if enabled.
-# For partial padrings, we do NOT use -connect_to_pads to avoid
-# floating segment removal on edges without pads.
+# For partial padrings, -connect_to_pads connects the ring to IO cells on edges
+# that have pads. Ring segments on edges without pads may be removed (they're
+# truly floating), but the stripe grid distributes power across the chip.
 if { $::env(PDN_CORE_RING) == 1 } {
     if { $::env(PDN_MULTILAYER) == 1 } {
         set arg_list [list]
         append_if_flag arg_list PDN_CORE_RING_ALLOW_OUT_OF_DIE -allow_out_of_die
-        # NOTE: Intentionally NOT using -connect_to_pads for partial padrings
-        # append_if_flag arg_list PDN_CORE_RING_CONNECT_TO_PADS -connect_to_pads
+        append_if_flag arg_list PDN_CORE_RING_CONNECT_TO_PADS -connect_to_pads
         append_if_equals arg_list PDN_EXTEND_TO "boundary" -extend_to_boundary
 
         set pdn_core_vertical_layer $::env(PDN_VERTICAL_LAYER)
@@ -176,16 +176,13 @@ if { $::env(PDN_CORE_RING) == 1 } {
         }
 
         # For partial padrings, power delivery relies on:
-        # 1. The core ring (created above without -connect_to_pads)
-        # 2. IO filler cells that have DVDD/DVSS power pins overlapping with the ring
-        # 3. The standard cell rails connecting to the core ring via vertical stripes
+        # 1. The core ring with -connect_to_pads to connect to IO cells on edges with pads
+        # 2. The stripe grid distributing power across the entire chip
+        # 3. Standard cell rails connecting to the stripe grid
         #
-        # The -allow_out_of_die flag on the core ring allows the ring to extend
-        # toward the die boundary where IO cells are located. The geometric overlap
-        # between the ring and IO filler power pins creates the electrical connection.
-        #
-        # We intentionally do NOT use -connect_to_pads because that would remove
-        # ring segments on edges without pads (treating them as "floating").
+        # Ring segments on edges without pads may be removed by -connect_to_pads
+        # (they're floating with no power source), but the stripe grid ensures
+        # all cells receive power from edges that do have pads.
 
     } else {
         throw APPLICATION "PDN_CORE_RING cannot be used when PDN_MULTILAYER is set to false."
