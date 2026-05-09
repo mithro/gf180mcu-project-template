@@ -54,7 +54,8 @@ class SlotInfo:
     io_bidir: int = 0
     io_inputs: int = 0
     io_analog: int = 0
-    io_power_pairs: int = 0
+    io_power_dvdd: int = 0
+    io_power_dvss: int = 0
 
     # Configuration variant info (for generated configs)
     density: str = "def"  # def, max, spc, num
@@ -135,7 +136,7 @@ class SlotInfo:
     @property
     def io_power_total(self) -> int:
         """Total power pads (DVDD + DVSS)."""
-        return self.io_power_pairs * 2
+        return self.io_power_dvdd + self.io_power_dvss
 
     @property
     def pad_total(self) -> int:
@@ -491,11 +492,15 @@ def parse_slot_yaml(yaml_path: Path) -> SlotInfo:
     core_width_um = core_area[2] - core_area[0]
     core_height_um = core_area[3] - core_area[1]
 
-    # Count IOs from pad lists
+    # Count IOs from pad lists. DVDD and DVSS are counted independently
+    # because slot configs may have unpaired ground reference pads (e.g.
+    # slot_1x1.yaml has 8 DVDD and 10 DVSS pads).
     io_bidir = 0
     io_inputs = 0
     io_analog = 0
-    io_power_pairs = 0
+    io_power_dvdd = 0
+    io_power_dvss = 0
+    unrecognized: list[str] = []
 
     for direction in ["PAD_SOUTH", "PAD_EAST", "PAD_NORTH", "PAD_WEST"]:
         pads = data.get(direction, [])
@@ -507,9 +512,18 @@ def parse_slot_yaml(yaml_path: Path) -> SlotInfo:
                 io_inputs += 1
             elif "analog" in pad_str:
                 io_analog += 1
-            elif "dvdd_pads" in pad_str:
-                io_power_pairs += 1
-            # dvss_pads are counted with dvdd as pairs
+            elif "dvdd" in pad_str:
+                io_power_dvdd += 1
+            elif "dvss" in pad_str:
+                io_power_dvss += 1
+            else:
+                unrecognized.append(pad_str)
+
+    if unrecognized:
+        print(
+            f"  WARNING: {yaml_path.name}: unrecognized pad entries: "
+            f"{unrecognized}"
+        )
 
     return SlotInfo(
         name=name,
@@ -521,7 +535,8 @@ def parse_slot_yaml(yaml_path: Path) -> SlotInfo:
         io_bidir=io_bidir,
         io_inputs=io_inputs,
         io_analog=io_analog,
-        io_power_pairs=io_power_pairs,
+        io_power_dvdd=io_power_dvdd,
+        io_power_dvss=io_power_dvss,
         density=density,
         edges=edges,
         config_name=config_name,
@@ -620,7 +635,8 @@ def generate_json(
                 "bidir": slot.io_bidir,
                 "inputs": slot.io_inputs,
                 "analog": slot.io_analog,
-                "power_pairs": slot.io_power_pairs,
+                "power_dvdd": slot.io_power_dvdd,
+                "power_dvss": slot.io_power_dvss,
                 "power_total": slot.io_power_total,
                 "signal_total": slot.io_signal_total,
                 "pad_total": slot.pad_total,
@@ -646,7 +662,9 @@ def generate_json(
                         "bidir": cfg.io_bidir,
                         "inputs": cfg.io_inputs,
                         "analog": cfg.io_analog,
-                        "power_pairs": cfg.io_power_pairs,
+                        "power_dvdd": cfg.io_power_dvdd,
+                        "power_dvss": cfg.io_power_dvss,
+                        "power_total": cfg.io_power_total,
                         "signal_total": cfg.io_signal_total,
                         "pad_total": cfg.pad_total,
                     },
@@ -717,14 +735,16 @@ def generate_markdown(slots: dict[str, SlotInfo], output_path: Path) -> None:
         "",
         "## IO Breakdown",
         "",
-        "| Slot | Bidirectional | Inputs | Analog | Total IOs | Power Pairs | Total Pads |",
-        "|------|---------------|--------|--------|-----------|-------------|------------|",
+        "| Slot | Bidirectional | Inputs | Analog | Total IOs | DVDD | DVSS | Power Pads | Total Pads |",
+        "|------|---------------|--------|--------|-----------|------|------|------------|------------|",
     ])
 
     for name in sorted_names:
         slot = slots[name]
         lines.append(
-            f"| {slot.label} | {slot.io_bidir} | {slot.io_inputs} | {slot.io_analog} | {slot.io_signal_total} | {slot.io_power_pairs} | {slot.pad_total} |"
+            f"| {slot.label} | {slot.io_bidir} | {slot.io_inputs} | {slot.io_analog} | "
+            f"{slot.io_signal_total} | {slot.io_power_dvdd} | {slot.io_power_dvss} | "
+            f"{slot.io_power_total} | {slot.pad_total} |"
         )
 
     lines.extend([
@@ -732,7 +752,9 @@ def generate_markdown(slots: dict[str, SlotInfo], output_path: Path) -> None:
         "## Notes",
         "",
         "- **IO Overhead**: Percentage of die area consumed by seal ring and IO ring",
-        "- **Power Pairs**: Each pair consists of one DVDD and one DVSS pad",
+        "- **DVDD / DVSS**: Counts of DVDD (power) and DVSS (ground) pads. These are not always paired — a slot may have additional unpaired DVSS reference pads.",
+        "- **Power Pads**: Total power-related pads (DVDD + DVSS).",
+        "- **Total Pads**: Total number of pads in the padring, equal to Total IOs + Power Pads.",
         "",
         f"*Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}*",
         "",
@@ -957,6 +979,8 @@ def generate_html(
                     <dd>{slot.io_overhead_pct:.0f}%</dd>
                     <dt>Total IOs</dt>
                     <dd>{slot.io_signal_total} (bidir: {slot.io_bidir}, in: {slot.io_inputs}, analog: {slot.io_analog})</dd>
+                    <dt>Power Pads</dt>
+                    <dd>{slot.io_power_total} ({slot.io_power_dvdd} DVDD + {slot.io_power_dvss} DVSS)</dd>
                     <dt>Total Pads</dt>
                     <dd>{slot.pad_total} ({slot.io_signal_total} IO + {slot.io_power_total} power)</dd>
                 </dl>
@@ -980,7 +1004,9 @@ def generate_html(
                         <th>Inputs</th>
                         <th>Analog</th>
                         <th>Total IOs</th>
-                        <th>Power</th>
+                        <th>DVDD</th>
+                        <th>DVSS</th>
+                        <th>Power Pads</th>
                         <th>Total Pads</th>
                     </tr>
                 </thead>
@@ -999,7 +1025,9 @@ def generate_html(
                     <td>{slot.io_inputs}</td>
                     <td>{slot.io_analog}</td>
                     <td>{slot.io_signal_total}</td>
-                    <td>{slot.io_power_pairs} pairs</td>
+                    <td>{slot.io_power_dvdd}</td>
+                    <td>{slot.io_power_dvss}</td>
+                    <td>{slot.io_power_total}</td>
                     <td>{slot.pad_total}</td>
                 </tr>
 """
@@ -1121,8 +1149,10 @@ def generate_html(
                         <th>Edges</th>
                         <th>Core Area</th>
                         <th>Bidir</th>
-                        <th>Power</th>
-                        <th>Total</th>
+                        <th>DVDD</th>
+                        <th>DVSS</th>
+                        <th>Power Pads</th>
+                        <th>Total Pads</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1151,7 +1181,9 @@ def generate_html(
                         <td>{edges_label}</td>
                         <td>{cfg.core_width_mm:.2f} × {cfg.core_height_mm:.2f}mm</td>
                         <td>{cfg.io_bidir}</td>
-                        <td>{cfg.io_power_pairs * 2}</td>
+                        <td>{cfg.io_power_dvdd}</td>
+                        <td>{cfg.io_power_dvss}</td>
+                        <td>{cfg.io_power_total}</td>
                         <td>{cfg.pad_total}</td>
                     </tr>
 """
