@@ -9,6 +9,9 @@ CORE_AREA: [442, 442, 1494, 4680]
 
 VERILOG_DEFINES: ["SLOT_0P5X1"]
 
+# Full padring: use standard PDN script (path is relative to librelane/)
+PDN_CFG: dir::pdn_cfg.tcl
+
 # Specify the pad instances for the padring
 PAD_SOUTH: [
     clk_pad,
