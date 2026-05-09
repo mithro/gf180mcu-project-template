@@ -56,16 +56,27 @@ jobs:
             local SOURCE=$2
             echo "Downloading images from $SOURCE run $RUN_ID"
 
-            # Get list of image artifacts
-            ARTIFACTS=$(gh api "repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts" \
-              -q '.artifacts[] | select(.name | endswith("_image")) | .name')
+            # Get list of image artifacts. Skip the run if the API call fails
+            # (e.g., the run was deleted) or returns no artifacts.
+            local ARTIFACTS
+            if ! ARTIFACTS=$(gh api "repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts" \
+              -q '.artifacts[] | select(.name | endswith("_image")) | .name'); then
+              echo "  Failed to list artifacts for run $RUN_ID, skipping"
+              return 0
+            fi
 
             for ARTIFACT in $ARTIFACTS; do
               SLOT_NAME="${ARTIFACT%_image}"
               echo "  Downloading $SLOT_NAME..."
 
-              # Download and extract artifact
-              gh run download "$RUN_ID" -n "$ARTIFACT" -D _tmp_artifact
+              # Download and extract artifact. Tolerate expired/missing
+              # artifacts (>90 day retention) so the workflow can still
+              # deploy the textual docs.
+              if ! gh run download "$RUN_ID" -n "$ARTIFACT" -D _tmp_artifact; then
+                echo "    Skipping $ARTIFACT (download failed, likely expired)"
+                rm -rf _tmp_artifact
+                continue
+              fi
 
               # Copy images with proper naming
               for PNG in _tmp_artifact/*.png; do
