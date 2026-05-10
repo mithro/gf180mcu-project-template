@@ -150,6 +150,8 @@ SLOT_LABELS = {
     "0p5x1": "0.5×1 (Half Width)",
     "1x0p5": "1×0.5 (Half Height)",
     "0p5x0p5": "0.5×0.5 (Quarter)",
+    "0p5x1_3side": "0.5×1 3-side (Half Width, no east)",
+    "1x0p5_3side": "1×0.5 3-side (Half Height, no south)",
 }
 
 # Density mode descriptions
@@ -602,7 +604,7 @@ def generate_json(
     }
 
     # Sort by slot order: 1x1 first
-    slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5"]
+    slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5", "0p5x1_3side", "1x0p5_3side"]
     sorted_names = sorted(slots.keys(), key=lambda x: slot_order.index(x) if x in slot_order else 99)
 
     for name in sorted_names:
@@ -720,7 +722,7 @@ def generate_markdown(slots: dict[str, SlotInfo], output_path: Path) -> None:
         "|------|----------|-----------|-----------|-------------|",
     ]
 
-    slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5"]
+    slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5", "0p5x1_3side", "1x0p5_3side"]
     sorted_names = sorted(slots.keys(), key=lambda x: slot_order.index(x) if x in slot_order else 99)
 
     for name in sorted_names:
@@ -774,7 +776,7 @@ def generate_html(
     configs: dict[str, list[SlotInfo]] | None = None,
 ) -> None:
     """Generate HTML file with slot information for GitHub Pages."""
-    slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5"]
+    slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5", "0p5x1_3side", "1x0p5_3side"]
     sorted_names = sorted(slots.keys(), key=lambda x: slot_order.index(x) if x in slot_order else 99)
 
     # Check which images exist
