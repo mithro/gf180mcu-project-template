@@ -103,6 +103,51 @@
 
 `endif
 
+`ifdef SLOT_0P5X1_3SIDE
+
+// Half-sized slot_1x1 (west half). 3 sides populated; east edge is the bare cut.
+// Pad counts match the WEST half of slot_1x1's padring.
+
+`ifdef NUM_DVDD_PADS_OVERRIDE
+  `define NUM_DVDD_PADS `NUM_DVDD_PADS_OVERRIDE
+`else
+  `define NUM_DVDD_PADS 4
+`endif
+`ifdef NUM_DVSS_PADS_OVERRIDE
+  `define NUM_DVSS_PADS `NUM_DVSS_PADS_OVERRIDE
+`else
+  `define NUM_DVSS_PADS 6
+`endif
+
+`define NUM_INPUT_PADS 12
+`define NUM_BIDIR_PADS 14
+`define NUM_ANALOG_PADS 0
+
+`endif
+
+`ifdef SLOT_1X0P5_3SIDE
+
+// Half-sized slot_1x1 (north half). 3 sides populated; south edge is the bare cut.
+// Pad counts match the NORTH half of slot_1x1's padring (with clk_pad/rst_n_pad
+// relocated to PAD_WEST since PAD_SOUTH is empty).
+
+`ifdef NUM_DVDD_PADS_OVERRIDE
+  `define NUM_DVDD_PADS `NUM_DVDD_PADS_OVERRIDE
+`else
+  `define NUM_DVDD_PADS 4
+`endif
+`ifdef NUM_DVSS_PADS_OVERRIDE
+  `define NUM_DVSS_PADS `NUM_DVSS_PADS_OVERRIDE
+`else
+  `define NUM_DVSS_PADS 5
+`endif
+
+`define NUM_INPUT_PADS 6
+`define NUM_BIDIR_PADS 20
+`define NUM_ANALOG_PADS 2
+
+`endif
+
 `ifdef SLOT_0P5X0P5
 
 `ifdef NUM_DVDD_PADS_OVERRIDE

@@ -1,0 +1,89 @@
+# Floorplanning
+# Half-sized 1x1 slot with the SOUTH edge as a bare cut edge (no pads).
+# Pad spacing/locations match the NORTH half of slot_1x1.yaml as closely as
+# LibreLane's auto-distribution allows (same pad count per unit length on
+# each populated edge).
+#
+# Note: clk_pad and rst_n_pad live on PAD_SOUTH in slot_1x1 but the south
+# edge here is bare; they are placed at the top of PAD_WEST (north end of
+# the west edge, just below the NW corner cell). This perturbs west-edge
+# spacing slightly versus slot_1x1.
+FP_SIZING: absolute
+# Half height of slot_1x1: 5122 / 2 = 2561
+DIE_AREA: [0, 0, 3932, 2561]
+# North/East/West use 442um margin (matching slot_1x1); south uses 130um
+# (just the seal ring + small buffer, since there are no IO cells there).
+CORE_AREA: [442, 130, 3490, 2119]
+
+VERILOG_DEFINES: ["SLOT_1X0P5_3SIDE"]
+
+# Partial padring (3-sided): use partial PDN script
+PDN_CFG: dir::pdn_partial.tcl
+
+# PAD_SOUTH: empty -- this is the bare cut edge.
+PAD_SOUTH: []
+
+# PAD_EAST: north half of slot_1x1 PAD_EAST (last 10 entries; the list is
+# in south->north order, so the last entries are at the north end).
+# Original had bidir[20..25] + dvss[3] + dvdd[2] + dvss[4] + dvdd[3].
+# Indices renumbered.
+PAD_EAST: [
+    "bidir\\[14\\].pad",
+    "bidir\\[15\\].pad",
+    "bidir\\[16\\].pad",
+    "bidir\\[17\\].pad",
+    "bidir\\[18\\].pad",
+    "bidir\\[19\\].pad",
+
+    "dvss_pads\\[1\\].pad",
+    "dvdd_pads\\[0\\].pad",
+    "dvss_pads\\[2\\].pad",
+    "dvdd_pads\\[1\\].pad"
+]
+
+# PAD_NORTH: full copy of slot_1x1 PAD_NORTH (analog + bidir + 1 dvss).
+# Indices renumbered.
+PAD_NORTH: [
+    "analog\\[1\\].pad",
+    "analog\\[0\\].pad",
+
+    "bidir\\[13\\].pad",
+    "bidir\\[12\\].pad",
+    "bidir\\[11\\].pad",
+    "bidir\\[10\\].pad",
+    "bidir\\[9\\].pad",
+    "bidir\\[8\\].pad",
+
+    "dvss_pads\\[0\\].pad",
+
+    "bidir\\[7\\].pad",
+    "bidir\\[6\\].pad",
+    "bidir\\[5\\].pad",
+    "bidir\\[4\\].pad",
+    "bidir\\[3\\].pad",
+    "bidir\\[2\\].pad",
+    "bidir\\[1\\].pad",
+    "bidir\\[0\\].pad"
+]
+
+# PAD_WEST: north half of slot_1x1 PAD_WEST (first 10 entries; the list is
+# in north->south order, so the first entries are at the north end).
+# Original had: dvdd[7], dvss[9], dvdd[6], dvss[8], inputs[11..6].
+# clk_pad and rst_n_pad are appended at the bottom (south end of west edge,
+# the half-edge cut location) since the south edge has no pads to host them.
+PAD_WEST: [
+    "dvdd_pads\\[3\\].pad",
+    "dvss_pads\\[4\\].pad",
+    "dvdd_pads\\[2\\].pad",
+    "dvss_pads\\[3\\].pad",
+
+    "inputs\\[5\\].pad",
+    "inputs\\[4\\].pad",
+    "inputs\\[3\\].pad",
+    "inputs\\[2\\].pad",
+    "inputs\\[1\\].pad",
+    "inputs\\[0\\].pad",
+
+    rst_n_pad,
+    clk_pad
+]
