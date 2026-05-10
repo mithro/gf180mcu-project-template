@@ -121,7 +121,7 @@
 
 `define NUM_INPUT_PADS 12
 `define NUM_BIDIR_PADS 14
-`define NUM_ANALOG_PADS 0
+`define NUM_ANALOG_PADS 2
 
 `endif
 

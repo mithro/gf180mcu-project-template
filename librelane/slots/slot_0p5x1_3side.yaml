@@ -38,7 +38,10 @@ PAD_SOUTH: [
 # PAD_EAST: empty -- this is the bare cut edge.
 PAD_EAST: []
 
-# PAD_NORTH: west half of slot_1x1 PAD_NORTH (1 dvss + 8 bidir).
+# PAD_NORTH: west half of slot_1x1 PAD_NORTH (1 dvss + 8 bidir) plus 2 analog
+# pads at the west end (analog pads from slot_1x1 originally lived at the east
+# end of north, which is now the bare cut edge -- they are relocated here so
+# the RTL's NUM_ANALOG_PADS can stay non-zero, avoiding a [-1:0] port range).
 # List is in east->west order (LibreLane reverses this edge).
 PAD_NORTH: [
     "dvss_pads\\[1\\].pad",
@@ -50,7 +53,10 @@ PAD_NORTH: [
     "bidir\\[9\\].pad",
     "bidir\\[8\\].pad",
     "bidir\\[7\\].pad",
-    "bidir\\[6\\].pad"
+    "bidir\\[6\\].pad",
+
+    "analog\\[1\\].pad",
+    "analog\\[0\\].pad"
 ]
 
 # PAD_WEST: full copy of slot_1x1 PAD_WEST (12 inputs + 4 dvdd + 4 dvss).
