@@ -11,9 +11,11 @@
 FP_SIZING: absolute
 # Half height of slot_1x1: 5122 / 2 = 2561
 DIE_AREA: [0, 0, 3932, 2561]
-# North/East/West use 442um margin (matching slot_1x1); south uses 130um
-# (just the seal ring + small buffer, since there are no IO cells there).
-CORE_AREA: [442, 130, 3490, 2119]
+# All edges use 442um margin: matches slot_1x1, and keeps the CORE_AREA
+# boundary outside the 355um corner cells on the bare south edge to avoid
+# OpenROAD inserting PHY_EDGE_ROW endcap cells with disconnected M1 power
+# pins (PSM-0069). South margin = 442um.
+CORE_AREA: [442, 442, 3490, 2119]
 
 VERILOG_DEFINES: ["SLOT_1X0P5_3SIDE"]
 
