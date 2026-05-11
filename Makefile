@@ -7,7 +7,7 @@ PDK_ROOT ?= $(MAKEFILE_DIR)/gf180mcu
 PDK ?= gf180mcuD
 PDK_TAG ?= 1.4.4
 
-AVAILABLE_SLOTS = 1x1 0p5x1 1x0p5 0p5x0p5
+AVAILABLE_SLOTS = 1x1 0p5x1 1x0p5 0p5x0p5 0p5x1_3side 1x0p5_3side
 DEFAULT_SLOT = 1x1
 
 # Slot can be any of AVAILABLE_SLOTS

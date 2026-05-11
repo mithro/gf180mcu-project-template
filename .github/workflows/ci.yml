@@ -35,7 +35,7 @@ jobs:
         id: export-slots
         run: |
           if ${{ github.repository == 'wafer-space/gf180mcu-project-template' || github.repository == 'mithro/gf180mcu-project-template' }}; then
-            echo "slots=['1x1', '0p5x1', '1x0p5', '0p5x0p5']" >> $GITHUB_OUTPUT
+            echo "slots=['1x1', '0p5x1', '1x0p5', '0p5x0p5', '0p5x1_3side', '1x0p5_3side']" >> $GITHUB_OUTPUT
           else
             echo "slots=['default']" >> $GITHUB_OUTPUT
           fi
@@ -47,6 +47,7 @@ jobs:
     needs:
       - pre
     strategy:
+      fail-fast: false
       matrix:
         slot: ${{fromJSON(needs.pre.outputs.matrix)}}
     steps:
