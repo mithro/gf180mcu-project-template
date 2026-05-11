@@ -113,9 +113,11 @@ jobs:
               ALL_CONFIGS=$(echo "$ALL_CONFIGS" | grep -E "^($PATTERN)$")
             fi
           else
-            # Automatic trigger (push/PR) - build defaults + all 0.5x0.5
-            # Select: all *_def_all configs AND all 0p5x0p5_* configs
-            ALL_CONFIGS=$(echo "$ALL_CONFIGS" | grep -E "(_def_all$|^0p5x0p5_)")
+            # Automatic trigger (push/PR) - build all generated slot configs
+            # so every variant has a fresh GDS + image artifact for the
+            # Slot Documentation page. ALL_CONFIGS already contains every
+            # *.yaml under librelane/slots/generated/, so no filtering needed.
+            :
           fi
 
           # Convert to JSON array
