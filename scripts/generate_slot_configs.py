@@ -634,9 +634,14 @@ def generate_config_yaml(
     else:
         # Margin for edges with IO pads - same as DEF config
         margin_with_io = CORE_MARGIN_DEFAULT
-        # Margin for edges without IO pads (seal ring + buffer, grid-aligned)
-        # Value must be aligned to placement site grid. 130µm works (126 gets snapped).
-        margin_no_io = 130  # Seal ring (26) + 104µm buffer, grid-aligned
+        # Margin for edges without IO pads.
+        # Must be >= CORNER_CELL_SIZE (355µm) to avoid PHY_EDGE_ROW cells from
+        # OpenROAD, which have isolated Metal1 VDD/VSS pins that can't be reached
+        # by the PDN grid, causing PSM-0069 (power connectivity) failures and
+        # DPL-0033 (tap cell placement) failures. Use CORE_MARGIN_DEFAULT (442µm)
+        # to guarantee the same floorplan geometry as the full padring configs,
+        # where the PDN has been verified to work.
+        margin_no_io = CORE_MARGIN_DEFAULT  # Same as pad-edge margin (442µm)
 
         # West edge (affects core_x1)
         west_margin = margin_with_io if "west" in active_edges else margin_no_io
