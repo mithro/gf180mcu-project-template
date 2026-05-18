@@ -49,91 +49,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mkdir -p _site/images _site/thumbnails
-
-          download_from_run() {
-            local RUN_ID=$1
-            local SOURCE=$2
-            echo "Downloading images from $SOURCE run $RUN_ID"
-
-            # Get list of image artifacts
-            ARTIFACTS=$(gh api "repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts" \
-              -q '.artifacts[] | select(.name | endswith("_image")) | .name')
-
-            for ARTIFACT in $ARTIFACTS; do
-              SLOT_NAME="${ARTIFACT%_image}"
-              echo "  Downloading $SLOT_NAME..."
-
-              # Download and extract artifact
-              gh run download "$RUN_ID" -n "$ARTIFACT" -D _tmp_artifact
-
-              # Copy images with proper naming
-              for PNG in _tmp_artifact/*.png; do
-                [ -f "$PNG" ] || continue
-                BASENAME=$(basename "$PNG")
-
-                # Determine variant (black/white background)
-                if echo "$BASENAME" | grep -qi "black"; then
-                  VARIANT="black"
-                else
-                  VARIANT="white"
-                fi
-
-                cp "$PNG" "_site/images/${SLOT_NAME}_${VARIANT}.png"
-              done
-
-              rm -rf _tmp_artifact
-            done
-          }
-
-          BRANCH="${{ github.ref_name }}"
-          DOWNLOADED=0
-
-          # 1. Try IO Configurations workflow first (has config variant images)
-          # First try successful runs
-          IO_RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=${BRANCH}&status=success&per_page=10" \
-            -q '.workflow_runs[] | select(.name == "IO Configurations") | .id' | head -1)
-
-          # Try cancelled IO Configurations (may have partial artifacts)
-          if [ -z "$IO_RUN_ID" ]; then
-            IO_RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=${BRANCH}&per_page=20" \
-              -q '.workflow_runs[] | select(.name == "IO Configurations" and .conclusion == "cancelled") | .id' | head -1)
-          fi
-
-          # Try IO Configurations on main
-          if [ -z "$IO_RUN_ID" ]; then
-            IO_RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=main&status=success&per_page=10" \
-              -q '.workflow_runs[] | select(.name == "IO Configurations") | .id' | head -1)
-          fi
-
-          # Try cancelled IO Configurations on main
-          if [ -z "$IO_RUN_ID" ]; then
-            IO_RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=main&per_page=20" \
-              -q '.workflow_runs[] | select(.name == "IO Configurations" and .conclusion == "cancelled") | .id' | head -1)
-          fi
-
-          if [ -n "$IO_RUN_ID" ]; then
-            download_from_run "$IO_RUN_ID" "IO Configurations"
-            DOWNLOADED=1
-          fi
-
-          # 2. Also download from CI workflow (has base slot images that may not be in IO Configurations)
-          CI_RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=${BRANCH}&status=success&per_page=10" \
-            -q '.workflow_runs[] | select(.name == "CI") | .id' | head -1)
-
-          if [ -z "$CI_RUN_ID" ]; then
-            CI_RUN_ID=$(gh api "repos/${{ github.repository }}/actions/runs?branch=main&status=success&per_page=10" \
-              -q '.workflow_runs[] | select(.name == "CI") | .id' | head -1)
-          fi
-
-          if [ -n "$CI_RUN_ID" ]; then
-            download_from_run "$CI_RUN_ID" "CI"
-            DOWNLOADED=1
-          fi
-
-          if [ "$DOWNLOADED" -eq 0 ]; then
-            echo "No CI or IO Configurations run found, skipping image download"
-          fi
+          # Aggregate the freshest render image per slot/config across recent
+          # CI + IO Configurations runs (newest-first, conclusion-agnostic).
+          # A single flaky job among the ~74 IO Configuration builds marks the
+          # whole run "failure"; selecting only success/cancelled runs would
+          # then fall back to a stale or expired run and leave "-" placeholders
+          # on the page. Newest-wins aggregation backfills every config from
+          # the newest run that still has its artifact.
+          uv run scripts/download_slot_images.py \
+            --repo "${{ github.repository }}" \
+            --branch "${{ github.ref_name }}" \
+            --out _site/images \
+            --max-runs 60
 
       - name: Normalize images to consistent scale
         run: |
@@ -147,6 +74,7 @@ jobs:
       - name: Create thumbnails
         run: |
           # Create thumbnails from normalized images
+          mkdir -p _site/thumbnails
           for PNG in _site/images/*.png; do
             [ -f "$PNG" ] || continue
             BASENAME=$(basename "$PNG" .png)
