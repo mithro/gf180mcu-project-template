@@ -50,9 +50,13 @@ proc lx_1x1_curpos {die_dim n_pads is_horizontal} {
     return $out
 }
 
-proc lx_place {block row inst loc} {
+# Place pad #idx of $::env($side) (the SAME resolved instance list
+# stock pad_cfg.tcl iterates -- avoids any name re-escaping) at the
+# given along-edge location.
+proc lx_place {block side row idx loc} {
+    set inst [lindex $::env($side) $idx]
     if { [set i [$block findInst $inst]] == "NULL" } {
-        puts stderr "\[ERROR\] exact PAD_CFG: instance $inst not found"
+        puts stderr "\[ERROR\] exact PAD_CFG: $side\[$idx\] ($inst) not found"
         exit 1
     }
     place_pad -row $row -location $loc \
@@ -60,30 +64,32 @@ proc lx_place {block row inst loc} {
 }
 
 # ---- IO_SOUTH (PAD_SOUTH) ----
+# PAD_SOUTH list order == placement order below (idx -> location).
 set cp_S [lx_1x1_curpos 3932 17 1]
-lx_place $block IO_SOUTH "clk_pad" [lindex $cp_S 0]  ;# 1x1 ordinal 0
-lx_place $block IO_SOUTH "rst_n_pad" [lindex $cp_S 1]  ;# 1x1 ordinal 1
-lx_place $block IO_SOUTH "bidir\[0\].pad" [lindex $cp_S 2]  ;# 1x1 ordinal 2
-lx_place $block IO_SOUTH "bidir\[1\].pad" [lindex $cp_S 3]  ;# 1x1 ordinal 3
-lx_place $block IO_SOUTH "bidir\[2\].pad" [lindex $cp_S 4]  ;# 1x1 ordinal 4
-lx_place $block IO_SOUTH "bidir\[3\].pad" [lindex $cp_S 5]  ;# 1x1 ordinal 5
-lx_place $block IO_SOUTH "analog\[0\].pad" 1464.5000  ;# relocated analog (NOT 1x1-preserved)
+lx_place $block PAD_SOUTH IO_SOUTH 0 [lindex $cp_S 0]  ;# clk_pad @ 1x1 ordinal 0
+lx_place $block PAD_SOUTH IO_SOUTH 1 [lindex $cp_S 1]  ;# rst_n_pad @ 1x1 ordinal 1
+lx_place $block PAD_SOUTH IO_SOUTH 2 [lindex $cp_S 2]  ;# bidir[0].pad @ 1x1 ordinal 2
+lx_place $block PAD_SOUTH IO_SOUTH 3 [lindex $cp_S 3]  ;# bidir[1].pad @ 1x1 ordinal 3
+lx_place $block PAD_SOUTH IO_SOUTH 4 [lindex $cp_S 4]  ;# bidir[2].pad @ 1x1 ordinal 4
+lx_place $block PAD_SOUTH IO_SOUTH 5 [lindex $cp_S 5]  ;# bidir[3].pad @ 1x1 ordinal 5
+lx_place $block PAD_SOUTH IO_SOUTH 6 1464.5000  ;# analog[0].pad (relocated analog, NOT 1x1-preserved)
 
 # PAD_EAST: bare cut edge -- no pads
 
 # PAD_NORTH: bare cut edge -- no pads
 
 # ---- IO_WEST (PAD_WEST) ----
+# PAD_WEST list order == placement order below (idx -> location).
 set cp_W [lx_1x1_curpos 5122 20 0]
-lx_place $block IO_WEST "inputs\[0\].pad" [lindex $cp_W 0]  ;# 1x1 ordinal 0
-lx_place $block IO_WEST "inputs\[1\].pad" [lindex $cp_W 1]  ;# 1x1 ordinal 1
-lx_place $block IO_WEST "dvss_pads\[0\].pad" [lindex $cp_W 2]  ;# 1x1 ordinal 2
-lx_place $block IO_WEST "dvdd_pads\[0\].pad" [lindex $cp_W 3]  ;# 1x1 ordinal 3
-lx_place $block IO_WEST "inputs\[2\].pad" [lindex $cp_W 4]  ;# 1x1 ordinal 4
-lx_place $block IO_WEST "inputs\[3\].pad" [lindex $cp_W 5]  ;# 1x1 ordinal 5
-lx_place $block IO_WEST "inputs\[4\].pad" [lindex $cp_W 6]  ;# 1x1 ordinal 6
-lx_place $block IO_WEST "inputs\[5\].pad" [lindex $cp_W 7]  ;# 1x1 ordinal 7
-lx_place $block IO_WEST "analog\[1\].pad" 2072.0000  ;# relocated analog (NOT 1x1-preserved)
+lx_place $block PAD_WEST IO_WEST 0 [lindex $cp_W 0]  ;# inputs[0].pad @ 1x1 ordinal 0
+lx_place $block PAD_WEST IO_WEST 1 [lindex $cp_W 1]  ;# inputs[1].pad @ 1x1 ordinal 1
+lx_place $block PAD_WEST IO_WEST 2 [lindex $cp_W 2]  ;# dvss_pads[0].pad @ 1x1 ordinal 2
+lx_place $block PAD_WEST IO_WEST 3 [lindex $cp_W 3]  ;# dvdd_pads[0].pad @ 1x1 ordinal 3
+lx_place $block PAD_WEST IO_WEST 4 [lindex $cp_W 4]  ;# inputs[2].pad @ 1x1 ordinal 4
+lx_place $block PAD_WEST IO_WEST 5 [lindex $cp_W 5]  ;# inputs[3].pad @ 1x1 ordinal 5
+lx_place $block PAD_WEST IO_WEST 6 [lindex $cp_W 6]  ;# inputs[4].pad @ 1x1 ordinal 6
+lx_place $block PAD_WEST IO_WEST 7 [lindex $cp_W 7]  ;# inputs[5].pad @ 1x1 ordinal 7
+lx_place $block PAD_WEST IO_WEST 8 2072.0000  ;# analog[1].pad (relocated analog, NOT 1x1-preserved)
 
 puts "\[INFO\] Placing corner cells…"
 place_corners $::env(PAD_CORNER)
