@@ -58,8 +58,17 @@ on:
           - sec
 
 concurrency:
-  group: io-configs-${{ github.ref }}
-  cancel-in-progress: true
+  # Mirror ci.yml: run serially on main/version-/dev so the full ~74-job
+  # matrix completes and produces a complete artifact set for the Slot
+  # Documentation page to aggregate. On feature branches / PRs a newer
+  # push still cancels the older run.
+  group: >
+    ${{
+      (github.event_name == 'pull_request' && format('io-pr-{0}', github.event.pull_request.number)) ||
+      (github.event_name == 'push' && format('io-branch-{0}', github.ref_name)) ||
+      format('io-{0}', github.ref)
+    }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || !(startsWith(github.ref_name, 'version-') || github.ref_name == 'main' || github.ref_name == 'dev') }}
 
 jobs:
   # Generate the matrix of configurations to build
