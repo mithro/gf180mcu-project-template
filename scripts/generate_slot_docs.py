@@ -154,6 +154,7 @@ SLOT_LABELS = {
     "1x0p5_3side": "1×0.5 3-side (Half Height, no south)",
     "0p5x1_3side_exact": "0.5×1 3-side EXACT (Half Width, no east; pads pinned to slot_1x1 coords)",
     "1x0p5_3side_exact": "1×0.5 3-side EXACT (Half Height, no north; pads pinned to slot_1x1 coords)",
+    "0p5x0p5_2side_exact": "0.5×0.5 2-side EXACT (Quarter, no north/east; pads pinned to slot_1x1 coords)",
 }
 
 # Density mode descriptions
@@ -1295,6 +1296,9 @@ def generate_html(
          "0.5×1 3-side EXACT (half width, east edge is the bare cut)"),
         ("1x0p5_3side_exact",
          "1×0.5 3-side EXACT (half height, north edge is the bare cut)"),
+        ("0p5x0p5_2side_exact",
+         "0.5×0.5 2-side EXACT (quarter, north + east edges are the "
+         "bare cuts)"),
     ]
     have_overlays = []
     if images_dir is not None:
