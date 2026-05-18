@@ -370,10 +370,14 @@ def emit_pad_cfg(cfg: ExactConfig, placements: dict) -> str:
     a("    return $out")
     a("}")
     a("")
-    a("proc lx_place {block row inst loc} {")
+    a("# Place pad #idx of $::env($side) (the SAME resolved instance list")
+    a("# stock pad_cfg.tcl iterates -- avoids any name re-escaping) at the")
+    a("# given along-edge location.")
+    a("proc lx_place {block side row idx loc} {")
+    a("    set inst [lindex $::env($side) $idx]")
     a('    if { [set i [$block findInst $inst]] == "NULL" } {')
-    a('        puts stderr "\\[ERROR\\] exact PAD_CFG: instance $inst '
-      'not found"')
+    a('        puts stderr "\\[ERROR\\] exact PAD_CFG: $side\\[$idx\\] '
+      '($inst) not found"')
     a("        exit 1")
     a("    }")
     a("    place_pad -row $row -location $loc \\")
@@ -389,16 +393,18 @@ def emit_pad_cfg(cfg: ExactConfig, placements: dict) -> str:
             continue
         is_h = "1" if e in "SN" else "0"
         a(f"# ---- {ROW[e]} ({key}) ----")
+        a(f"# {key} list order == placement order below (idx -> location).")
         a(f"set cp_{e} [lx_1x1_curpos {edge_die[e]} {edge_n[e]} {is_h}]")
-        for p in pl:
-            tcl_inst = p["inst"].replace("\\\\", "\\")
+        for idx, p in enumerate(pl):
             if p["exact"]:
-                a(f'lx_place $block {ROW[e]} "{tcl_inst}" '
-                  f'[lindex $cp_{e} {p["ord1x1"]}]  ;# 1x1 ordinal '
-                  f'{p["ord1x1"]}')
+                a(f'lx_place $block {key} {ROW[e]} {idx} '
+                  f'[lindex $cp_{e} {p["ord1x1"]}]'
+                  f'  ;# {p["inst"].replace(chr(92)*2, "")} '
+                  f'@ 1x1 ordinal {p["ord1x1"]}')
             else:
-                a(f'lx_place $block {ROW[e]} "{tcl_inst}" {p["off"]:.4f}'
-                  f'  ;# relocated analog (NOT 1x1-preserved)')
+                a(f'lx_place $block {key} {ROW[e]} {idx} {p["off"]:.4f}'
+                  f'  ;# {p["inst"].replace(chr(92)*2, "")} '
+                  f'(relocated analog, NOT 1x1-preserved)')
         a("")
     a('puts "\\[INFO\\] Placing corner cells…"')
     a("place_corners $::env(PAD_CORNER)")

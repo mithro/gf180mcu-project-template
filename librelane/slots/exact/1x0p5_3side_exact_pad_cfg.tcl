@@ -50,9 +50,13 @@ proc lx_1x1_curpos {die_dim n_pads is_horizontal} {
     return $out
 }
 
-proc lx_place {block row inst loc} {
+# Place pad #idx of $::env($side) (the SAME resolved instance list
+# stock pad_cfg.tcl iterates -- avoids any name re-escaping) at the
+# given along-edge location.
+proc lx_place {block side row idx loc} {
+    set inst [lindex $::env($side) $idx]
     if { [set i [$block findInst $inst]] == "NULL" } {
-        puts stderr "\[ERROR\] exact PAD_CFG: instance $inst not found"
+        puts stderr "\[ERROR\] exact PAD_CFG: $side\[$idx\] ($inst) not found"
         exit 1
     }
     place_pad -row $row -location $loc \
@@ -60,50 +64,53 @@ proc lx_place {block row inst loc} {
 }
 
 # ---- IO_SOUTH (PAD_SOUTH) ----
+# PAD_SOUTH list order == placement order below (idx -> location).
 set cp_S [lx_1x1_curpos 3932 17 1]
-lx_place $block IO_SOUTH "clk_pad" [lindex $cp_S 0]  ;# 1x1 ordinal 0
-lx_place $block IO_SOUTH "rst_n_pad" [lindex $cp_S 1]  ;# 1x1 ordinal 1
-lx_place $block IO_SOUTH "bidir\[0\].pad" [lindex $cp_S 2]  ;# 1x1 ordinal 2
-lx_place $block IO_SOUTH "bidir\[1\].pad" [lindex $cp_S 3]  ;# 1x1 ordinal 3
-lx_place $block IO_SOUTH "bidir\[2\].pad" [lindex $cp_S 4]  ;# 1x1 ordinal 4
-lx_place $block IO_SOUTH "bidir\[3\].pad" [lindex $cp_S 5]  ;# 1x1 ordinal 5
-lx_place $block IO_SOUTH "bidir\[4\].pad" [lindex $cp_S 6]  ;# 1x1 ordinal 6
-lx_place $block IO_SOUTH "bidir\[5\].pad" [lindex $cp_S 7]  ;# 1x1 ordinal 7
-lx_place $block IO_SOUTH "dvss_pads\[0\].pad" [lindex $cp_S 8]  ;# 1x1 ordinal 8
-lx_place $block IO_SOUTH "bidir\[6\].pad" [lindex $cp_S 9]  ;# 1x1 ordinal 9
-lx_place $block IO_SOUTH "bidir\[7\].pad" [lindex $cp_S 10]  ;# 1x1 ordinal 10
-lx_place $block IO_SOUTH "bidir\[8\].pad" [lindex $cp_S 11]  ;# 1x1 ordinal 11
-lx_place $block IO_SOUTH "bidir\[9\].pad" [lindex $cp_S 12]  ;# 1x1 ordinal 12
-lx_place $block IO_SOUTH "bidir\[10\].pad" [lindex $cp_S 13]  ;# 1x1 ordinal 13
-lx_place $block IO_SOUTH "bidir\[11\].pad" [lindex $cp_S 14]  ;# 1x1 ordinal 14
-lx_place $block IO_SOUTH "bidir\[12\].pad" [lindex $cp_S 15]  ;# 1x1 ordinal 15
-lx_place $block IO_SOUTH "bidir\[13\].pad" [lindex $cp_S 16]  ;# 1x1 ordinal 16
-lx_place $block IO_SOUTH "analog\[0\].pad" 3444.5000  ;# relocated analog (NOT 1x1-preserved)
+lx_place $block PAD_SOUTH IO_SOUTH 0 [lindex $cp_S 0]  ;# clk_pad @ 1x1 ordinal 0
+lx_place $block PAD_SOUTH IO_SOUTH 1 [lindex $cp_S 1]  ;# rst_n_pad @ 1x1 ordinal 1
+lx_place $block PAD_SOUTH IO_SOUTH 2 [lindex $cp_S 2]  ;# bidir[0].pad @ 1x1 ordinal 2
+lx_place $block PAD_SOUTH IO_SOUTH 3 [lindex $cp_S 3]  ;# bidir[1].pad @ 1x1 ordinal 3
+lx_place $block PAD_SOUTH IO_SOUTH 4 [lindex $cp_S 4]  ;# bidir[2].pad @ 1x1 ordinal 4
+lx_place $block PAD_SOUTH IO_SOUTH 5 [lindex $cp_S 5]  ;# bidir[3].pad @ 1x1 ordinal 5
+lx_place $block PAD_SOUTH IO_SOUTH 6 [lindex $cp_S 6]  ;# bidir[4].pad @ 1x1 ordinal 6
+lx_place $block PAD_SOUTH IO_SOUTH 7 [lindex $cp_S 7]  ;# bidir[5].pad @ 1x1 ordinal 7
+lx_place $block PAD_SOUTH IO_SOUTH 8 [lindex $cp_S 8]  ;# dvss_pads[0].pad @ 1x1 ordinal 8
+lx_place $block PAD_SOUTH IO_SOUTH 9 [lindex $cp_S 9]  ;# bidir[6].pad @ 1x1 ordinal 9
+lx_place $block PAD_SOUTH IO_SOUTH 10 [lindex $cp_S 10]  ;# bidir[7].pad @ 1x1 ordinal 10
+lx_place $block PAD_SOUTH IO_SOUTH 11 [lindex $cp_S 11]  ;# bidir[8].pad @ 1x1 ordinal 11
+lx_place $block PAD_SOUTH IO_SOUTH 12 [lindex $cp_S 12]  ;# bidir[9].pad @ 1x1 ordinal 12
+lx_place $block PAD_SOUTH IO_SOUTH 13 [lindex $cp_S 13]  ;# bidir[10].pad @ 1x1 ordinal 13
+lx_place $block PAD_SOUTH IO_SOUTH 14 [lindex $cp_S 14]  ;# bidir[11].pad @ 1x1 ordinal 14
+lx_place $block PAD_SOUTH IO_SOUTH 15 [lindex $cp_S 15]  ;# bidir[12].pad @ 1x1 ordinal 15
+lx_place $block PAD_SOUTH IO_SOUTH 16 [lindex $cp_S 16]  ;# bidir[13].pad @ 1x1 ordinal 16
+lx_place $block PAD_SOUTH IO_SOUTH 17 3444.5000  ;# analog[0].pad (relocated analog, NOT 1x1-preserved)
 
 # ---- IO_EAST (PAD_EAST) ----
+# PAD_EAST list order == placement order below (idx -> location).
 set cp_E [lx_1x1_curpos 5122 20 0]
-lx_place $block IO_EAST "dvdd_pads\[0\].pad" [lindex $cp_E 0]  ;# 1x1 ordinal 0
-lx_place $block IO_EAST "dvss_pads\[1\].pad" [lindex $cp_E 1]  ;# 1x1 ordinal 1
-lx_place $block IO_EAST "bidir\[14\].pad" [lindex $cp_E 2]  ;# 1x1 ordinal 2
-lx_place $block IO_EAST "bidir\[15\].pad" [lindex $cp_E 3]  ;# 1x1 ordinal 3
-lx_place $block IO_EAST "bidir\[16\].pad" [lindex $cp_E 4]  ;# 1x1 ordinal 4
-lx_place $block IO_EAST "bidir\[17\].pad" [lindex $cp_E 5]  ;# 1x1 ordinal 5
-lx_place $block IO_EAST "bidir\[18\].pad" [lindex $cp_E 6]  ;# 1x1 ordinal 6
-lx_place $block IO_EAST "bidir\[19\].pad" [lindex $cp_E 7]  ;# 1x1 ordinal 7
-lx_place $block IO_EAST "analog\[1\].pad" 2072.0000  ;# relocated analog (NOT 1x1-preserved)
+lx_place $block PAD_EAST IO_EAST 0 [lindex $cp_E 0]  ;# dvdd_pads[0].pad @ 1x1 ordinal 0
+lx_place $block PAD_EAST IO_EAST 1 [lindex $cp_E 1]  ;# dvss_pads[1].pad @ 1x1 ordinal 1
+lx_place $block PAD_EAST IO_EAST 2 [lindex $cp_E 2]  ;# bidir[14].pad @ 1x1 ordinal 2
+lx_place $block PAD_EAST IO_EAST 3 [lindex $cp_E 3]  ;# bidir[15].pad @ 1x1 ordinal 3
+lx_place $block PAD_EAST IO_EAST 4 [lindex $cp_E 4]  ;# bidir[16].pad @ 1x1 ordinal 4
+lx_place $block PAD_EAST IO_EAST 5 [lindex $cp_E 5]  ;# bidir[17].pad @ 1x1 ordinal 5
+lx_place $block PAD_EAST IO_EAST 6 [lindex $cp_E 6]  ;# bidir[18].pad @ 1x1 ordinal 6
+lx_place $block PAD_EAST IO_EAST 7 [lindex $cp_E 7]  ;# bidir[19].pad @ 1x1 ordinal 7
+lx_place $block PAD_EAST IO_EAST 8 2072.0000  ;# analog[1].pad (relocated analog, NOT 1x1-preserved)
 
 # PAD_NORTH: bare cut edge -- no pads
 
 # ---- IO_WEST (PAD_WEST) ----
+# PAD_WEST list order == placement order below (idx -> location).
 set cp_W [lx_1x1_curpos 5122 20 0]
-lx_place $block IO_WEST "inputs\[0\].pad" [lindex $cp_W 0]  ;# 1x1 ordinal 0
-lx_place $block IO_WEST "inputs\[1\].pad" [lindex $cp_W 1]  ;# 1x1 ordinal 1
-lx_place $block IO_WEST "dvss_pads\[2\].pad" [lindex $cp_W 2]  ;# 1x1 ordinal 2
-lx_place $block IO_WEST "dvdd_pads\[1\].pad" [lindex $cp_W 3]  ;# 1x1 ordinal 3
-lx_place $block IO_WEST "inputs\[2\].pad" [lindex $cp_W 4]  ;# 1x1 ordinal 4
-lx_place $block IO_WEST "inputs\[3\].pad" [lindex $cp_W 5]  ;# 1x1 ordinal 5
-lx_place $block IO_WEST "inputs\[4\].pad" [lindex $cp_W 6]  ;# 1x1 ordinal 6
-lx_place $block IO_WEST "inputs\[5\].pad" [lindex $cp_W 7]  ;# 1x1 ordinal 7
+lx_place $block PAD_WEST IO_WEST 0 [lindex $cp_W 0]  ;# inputs[0].pad @ 1x1 ordinal 0
+lx_place $block PAD_WEST IO_WEST 1 [lindex $cp_W 1]  ;# inputs[1].pad @ 1x1 ordinal 1
+lx_place $block PAD_WEST IO_WEST 2 [lindex $cp_W 2]  ;# dvss_pads[2].pad @ 1x1 ordinal 2
+lx_place $block PAD_WEST IO_WEST 3 [lindex $cp_W 3]  ;# dvdd_pads[1].pad @ 1x1 ordinal 3
+lx_place $block PAD_WEST IO_WEST 4 [lindex $cp_W 4]  ;# inputs[2].pad @ 1x1 ordinal 4
+lx_place $block PAD_WEST IO_WEST 5 [lindex $cp_W 5]  ;# inputs[3].pad @ 1x1 ordinal 5
+lx_place $block PAD_WEST IO_WEST 6 [lindex $cp_W 6]  ;# inputs[4].pad @ 1x1 ordinal 6
+lx_place $block PAD_WEST IO_WEST 7 [lindex $cp_W 7]  ;# inputs[5].pad @ 1x1 ordinal 7
 
 puts "\[INFO\] Placing corner cells…"
 place_corners $::env(PAD_CORNER)
