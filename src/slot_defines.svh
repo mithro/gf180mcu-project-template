@@ -10,6 +10,18 @@
 // - 1x0.5:   N/S=42 pads, E/W=23 pads, total=130
 // - 0.5x0.5: N/S=15 pads, E/W=23 pads, total=76
 
+// The U-ring 3-side variants differ from their base 3-side configs ONLY in
+// PDN core-ring topology (the bare edge has no ring metal); the RTL pad
+// counts are identical. The `make sim` step derives its define from the
+// slot NAME (SLOT_0P5X1_3SIDE_URING), so alias those to the base 3-side
+// defines before the pad-count blocks below resolve them.
+`ifdef SLOT_0P5X1_3SIDE_URING
+  `define SLOT_0P5X1_3SIDE
+`endif
+`ifdef SLOT_1X0P5_3SIDE_URING
+  `define SLOT_1X0P5_3SIDE
+`endif
+
 `ifdef SLOT_1X1
 
 `ifdef NUM_DVDD_PADS_OVERRIDE
