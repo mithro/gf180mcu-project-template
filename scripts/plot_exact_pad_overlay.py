@@ -103,6 +103,7 @@ def main() -> int:
     cut = {
         "0p5x1_3side_exact": "E",
         "1x0p5_3side_exact": "N",
+        "0p5x0p5_2side_exact": "NE",
     }[args.config]
 
     s = args.scale
@@ -144,7 +145,7 @@ def main() -> int:
     # 2) retained 3-side pads as red outline at the SAME 1x1 ordinal coord
     n_exact = 0
     for e in "SNEW":
-        if e == cut:
+        if e in cut:
             continue
         cps = curpos(edge_dim[e], edge_n[e])
         limit = (new_die[0] if e in "SN" else new_die[1]) - ES - CORNER
