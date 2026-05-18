@@ -725,13 +725,26 @@ def generate_markdown(slots: dict[str, SlotInfo], output_path: Path) -> None:
     slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5", "0p5x1_3side", "1x0p5_3side"]
     sorted_names = sorted(slots.keys(), key=lambda x: slot_order.index(x) if x in slot_order else 99)
 
-    for name in sorted_names:
-        slot = slots[name]
+    # Standard slots have a full 4-sided padring; 3-side slots are half-sized
+    # variants with a bare cut edge and are listed in their own section.
+    standard_names = [n for n in sorted_names if not n.endswith("_3side")]
+    threeside_names = [n for n in sorted_names if n.endswith("_3side")]
+
+    def dimension_row(slot: SlotInfo) -> str:
         die_size = f"{slot.die_width_mm:.2f} × {slot.die_height_mm:.2f}mm ({slot.die_area_mm2:.2f}mm²)"
         slot_size = f"{slot.slot_width_mm:.2f} × {slot.slot_height_mm:.2f}mm ({slot.slot_area_mm2:.2f}mm²)"
         core_size = f"{slot.core_width_mm:.2f} × {slot.core_height_mm:.2f}mm ({slot.core_area_mm2:.2f}mm²)"
-        overhead = f"{slot.io_overhead_pct:.0f}%"
-        lines.append(f"| {slot.label} | {die_size} | {slot_size} | {core_size} | {overhead} |")
+        return f"| {slot.label} | {die_size} | {slot_size} | {core_size} | {slot.io_overhead_pct:.0f}% |"
+
+    def io_row(slot: SlotInfo) -> str:
+        return (
+            f"| {slot.label} | {slot.io_bidir} | {slot.io_inputs} | {slot.io_analog} | "
+            f"{slot.io_signal_total} | {slot.io_power_dvdd} | {slot.io_power_dvss} | "
+            f"{slot.io_power_total} | {slot.pad_total} |"
+        )
+
+    for name in standard_names:
+        lines.append(dimension_row(slots[name]))
 
     lines.extend([
         "",
@@ -741,13 +754,29 @@ def generate_markdown(slots: dict[str, SlotInfo], output_path: Path) -> None:
         "|------|---------------|--------|--------|-----------|------|------|------------|------------|",
     ])
 
-    for name in sorted_names:
-        slot = slots[name]
-        lines.append(
-            f"| {slot.label} | {slot.io_bidir} | {slot.io_inputs} | {slot.io_analog} | "
-            f"{slot.io_signal_total} | {slot.io_power_dvdd} | {slot.io_power_dvss} | "
-            f"{slot.io_power_total} | {slot.pad_total} |"
-        )
+    for name in standard_names:
+        lines.append(io_row(slots[name]))
+
+    if threeside_names:
+        lines.extend([
+            "",
+            "## 3-Side Slots",
+            "",
+            "Half-sized variants of the 1×1 slot. One edge is a bare cut edge "
+            "with no IO pads, so the padring covers only three sides.",
+            "",
+            "| Slot | Die Size | Usable Silicon | Core Area | IO Overhead |",
+            "|------|----------|-----------|-----------|-------------|",
+        ])
+        for name in threeside_names:
+            lines.append(dimension_row(slots[name]))
+        lines.extend([
+            "",
+            "| Slot | Bidirectional | Inputs | Analog | Total IOs | DVDD | DVSS | Power Pads | Total Pads |",
+            "|------|---------------|--------|--------|-----------|------|------|------------|------------|",
+        ])
+        for name in threeside_names:
+            lines.append(io_row(slots[name]))
 
     lines.extend([
         "",
@@ -769,6 +798,93 @@ def generate_markdown(slots: dict[str, SlotInfo], output_path: Path) -> None:
     print(f"Generated: {output_path}")
 
 
+def _render_slot_cards(
+    names: list[str],
+    slots: dict[str, SlotInfo],
+    get_image_path,
+) -> str:
+    """Render the 'Available Slots' card grid for the given slot names."""
+    cards = ""
+    for name in names:
+        slot = slots[name]
+
+        img_html = ""
+        img_path = get_image_path(name, "white")
+        if img_path:
+            full_img = f"images/{name}_white.png"
+            img_html = f'<img src="{img_path}" alt="{slot.label}" onclick="openModal(\'{full_img}\')">'
+
+        cards += f"""            <div class="slot-card">
+                <h3>{slot.label}</h3>
+                {img_html}
+                <dl class="specs">
+                    <dt>Die Size</dt>
+                    <dd>{slot.die_width_mm:.2f}mm × {slot.die_height_mm:.2f}mm ({slot.die_area_mm2:.2f}mm²)</dd>
+                    <dt>Usable Silicon</dt>
+                    <dd>{slot.slot_width_mm:.2f}mm × {slot.slot_height_mm:.2f}mm ({slot.slot_area_mm2:.2f}mm²)</dd>
+                    <dt>Core Area</dt>
+                    <dd>{slot.core_width_mm:.2f}mm × {slot.core_height_mm:.2f}mm ({slot.core_area_mm2:.2f}mm²)</dd>
+                    <dt>IO Overhead</dt>
+                    <dd>{slot.io_overhead_pct:.0f}%</dd>
+                    <dt>Total IOs</dt>
+                    <dd>{slot.io_signal_total} (bidir: {slot.io_bidir}, in: {slot.io_inputs}, analog: {slot.io_analog})</dd>
+                    <dt>Power Pads</dt>
+                    <dd>{slot.io_power_total} ({slot.io_power_dvdd} DVDD + {slot.io_power_dvss} DVSS)</dd>
+                    <dt>Total Pads</dt>
+                    <dd>{slot.pad_total} ({slot.io_signal_total} IO + {slot.io_power_total} power)</dd>
+                </dl>
+            </div>
+"""
+    return cards
+
+
+def _render_detail_rows(names: list[str], slots: dict[str, SlotInfo]) -> str:
+    """Render the 'Detailed Specifications' table body rows for given slots."""
+    rows = ""
+    for name in names:
+        slot = slots[name]
+        rows += f"""                <tr>
+                    <td>{slot.label}</td>
+                    <td>{slot.die_width_mm:.2f} × {slot.die_height_mm:.2f}mm<br><small>({slot.die_area_mm2:.2f}mm²)</small></td>
+                    <td>{slot.slot_width_mm:.2f} × {slot.slot_height_mm:.2f}mm<br><small>({slot.slot_area_mm2:.2f}mm²)</small></td>
+                    <td>{slot.core_width_mm:.2f} × {slot.core_height_mm:.2f}mm<br><small>({slot.core_area_mm2:.2f}mm²)</small></td>
+                    <td>{slot.io_overhead_pct:.0f}%</td>
+                    <td>{slot.io_bidir}</td>
+                    <td>{slot.io_inputs}</td>
+                    <td>{slot.io_analog}</td>
+                    <td>{slot.io_signal_total}</td>
+                    <td>{slot.io_power_dvdd}</td>
+                    <td>{slot.io_power_dvss}</td>
+                    <td>{slot.io_power_total}</td>
+                    <td>{slot.pad_total}</td>
+                </tr>
+"""
+    return rows
+
+
+# Slot-detail table header (shared by the Standard and 3-Side groups).
+_DETAIL_TABLE_HEAD = """            <table>
+                <thead>
+                    <tr>
+                        <th>Slot</th>
+                        <th>Die Size</th>
+                        <th>Usable Silicon</th>
+                        <th>Core Area</th>
+                        <th>IO Overhead</th>
+                        <th>Bidir</th>
+                        <th>Inputs</th>
+                        <th>Analog</th>
+                        <th>Total IOs</th>
+                        <th>DVDD</th>
+                        <th>DVSS</th>
+                        <th>Power Pads</th>
+                        <th>Total Pads</th>
+                    </tr>
+                </thead>
+                <tbody>
+"""
+
+
 def generate_html(
     slots: dict[str, SlotInfo],
     output_path: Path,
@@ -778,6 +894,11 @@ def generate_html(
     """Generate HTML file with slot information for GitHub Pages."""
     slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5", "0p5x1_3side", "1x0p5_3side"]
     sorted_names = sorted(slots.keys(), key=lambda x: slot_order.index(x) if x in slot_order else 99)
+
+    # Standard slots have a full 4-sided padring; 3-side slots are half-sized
+    # variants with a bare cut edge. They are presented in separate groups.
+    standard_names = [n for n in sorted_names if not n.endswith("_3side")]
+    threeside_names = [n for n in sorted_names if n.endswith("_3side")]
 
     # Check which images exist
     def get_image_path(name: str, variant: str) -> str | None:
@@ -958,81 +1079,16 @@ def generate_html(
             <div class="slots-grid">
 """
 
-    for name in sorted_names:
-        slot = slots[name]
-
-        img_html = ""
-        img_path = get_image_path(name, "white")
-        if img_path:
-            full_img = f"images/{name}_white.png"
-            img_html = f'<img src="{img_path}" alt="{slot.label}" onclick="openModal(\'{full_img}\')">'
-
-        html += f"""            <div class="slot-card">
-                <h3>{slot.label}</h3>
-                {img_html}
-                <dl class="specs">
-                    <dt>Die Size</dt>
-                    <dd>{slot.die_width_mm:.2f}mm × {slot.die_height_mm:.2f}mm ({slot.die_area_mm2:.2f}mm²)</dd>
-                    <dt>Usable Silicon</dt>
-                    <dd>{slot.slot_width_mm:.2f}mm × {slot.slot_height_mm:.2f}mm ({slot.slot_area_mm2:.2f}mm²)</dd>
-                    <dt>Core Area</dt>
-                    <dd>{slot.core_width_mm:.2f}mm × {slot.core_height_mm:.2f}mm ({slot.core_area_mm2:.2f}mm²)</dd>
-                    <dt>IO Overhead</dt>
-                    <dd>{slot.io_overhead_pct:.0f}%</dd>
-                    <dt>Total IOs</dt>
-                    <dd>{slot.io_signal_total} (bidir: {slot.io_bidir}, in: {slot.io_inputs}, analog: {slot.io_analog})</dd>
-                    <dt>Power Pads</dt>
-                    <dd>{slot.io_power_total} ({slot.io_power_dvdd} DVDD + {slot.io_power_dvss} DVSS)</dd>
-                    <dt>Total Pads</dt>
-                    <dd>{slot.pad_total} ({slot.io_signal_total} IO + {slot.io_power_total} power)</dd>
-                </dl>
-            </div>
-"""
+    html += _render_slot_cards(standard_names, slots, get_image_path)
 
     html += """        </div>
         </div>
 
         <div class="section">
             <h2>Detailed Specifications</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Slot</th>
-                        <th>Die Size</th>
-                        <th>Usable Silicon</th>
-                        <th>Core Area</th>
-                        <th>IO Overhead</th>
-                        <th>Bidir</th>
-                        <th>Inputs</th>
-                        <th>Analog</th>
-                        <th>Total IOs</th>
-                        <th>DVDD</th>
-                        <th>DVSS</th>
-                        <th>Power Pads</th>
-                        <th>Total Pads</th>
-                    </tr>
-                </thead>
-                <tbody>
-"""
+""" + _DETAIL_TABLE_HEAD
 
-    for name in sorted_names:
-        slot = slots[name]
-        html += f"""                <tr>
-                    <td>{slot.label}</td>
-                    <td>{slot.die_width_mm:.2f} × {slot.die_height_mm:.2f}mm<br><small>({slot.die_area_mm2:.2f}mm²)</small></td>
-                    <td>{slot.slot_width_mm:.2f} × {slot.slot_height_mm:.2f}mm<br><small>({slot.slot_area_mm2:.2f}mm²)</small></td>
-                    <td>{slot.core_width_mm:.2f} × {slot.core_height_mm:.2f}mm<br><small>({slot.core_area_mm2:.2f}mm²)</small></td>
-                    <td>{slot.io_overhead_pct:.0f}%</td>
-                    <td>{slot.io_bidir}</td>
-                    <td>{slot.io_inputs}</td>
-                    <td>{slot.io_analog}</td>
-                    <td>{slot.io_signal_total}</td>
-                    <td>{slot.io_power_dvdd}</td>
-                    <td>{slot.io_power_dvss}</td>
-                    <td>{slot.io_power_total}</td>
-                    <td>{slot.pad_total}</td>
-                </tr>
-"""
+    html += _render_detail_rows(standard_names, slots)
 
     html += """            </tbody>
             </table>
@@ -1075,7 +1131,38 @@ def generate_html(
             </dl>
         </div>
     </div>
+"""
 
+    # 3-Side Slot Configurations: a separate group for the half-sized variants
+    # whose padring covers only three edges (one bare cut edge, no IO pads).
+    if threeside_names:
+        html += """
+    <hr class="section-divider">
+
+    <div class="section-group">
+        <div class="section-group-title">3-Side Slot Configurations</div>
+
+        <div class="section">
+            <h2>Available Slots</h2>
+            <p>Half-sized variants of the 1×1 slot. One edge is a bare cut edge
+            with no IO pads, so the padring covers only three sides.</p>
+            <div class="slots-grid">
+"""
+        html += _render_slot_cards(threeside_names, slots, get_image_path)
+        html += """        </div>
+        </div>
+
+        <div class="section">
+            <h2>Detailed Specifications</h2>
+""" + _DETAIL_TABLE_HEAD
+        html += _render_detail_rows(threeside_names, slots)
+        html += """            </tbody>
+            </table>
+        </div>
+    </div>
+"""
+
+    html += """
     <hr class="section-divider">
 
     <div class="section-group">
