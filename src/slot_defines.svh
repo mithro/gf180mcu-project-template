@@ -229,3 +229,30 @@
 `define NUM_ANALOG_PADS 2
 
 `endif
+
+`ifdef SLOT_0P5X0P5_2SIDE_EXACT
+
+// Exact-pad QUARTER slot_1x1 (NORTH + EAST edges = bare cuts, keep the
+// SOUTH-WEST corner).  This is the half-width (cut E) and half-height
+// (cut N) exact cases superimposed: only the SOUTH pads with
+// x=488.5+i*180 <= 1966-381 (i=0..5) and the WEST pads with
+// y=519+i*211 <= 2561-381 (i=0..7) survive, each pinned to its EXACT
+// slot_1x1 (x,y).  2 analog pads are relocated (not coordinate-
+// preserved) only so NUM_ANALOG_PADS >= 1.
+
+`ifdef NUM_DVDD_PADS_OVERRIDE
+  `define NUM_DVDD_PADS `NUM_DVDD_PADS_OVERRIDE
+`else
+  `define NUM_DVDD_PADS 1
+`endif
+`ifdef NUM_DVSS_PADS_OVERRIDE
+  `define NUM_DVSS_PADS `NUM_DVSS_PADS_OVERRIDE
+`else
+  `define NUM_DVSS_PADS 1
+`endif
+
+`define NUM_INPUT_PADS 6
+`define NUM_BIDIR_PADS 4
+`define NUM_ANALOG_PADS 2
+
+`endif
