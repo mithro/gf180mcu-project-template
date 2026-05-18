@@ -24,6 +24,7 @@ Designed to run in CI after both GDS artifacts exist (see the workflow).
 """
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -34,12 +35,22 @@ from PIL import Image
 # slot_1x1 die box (um) -- the common world window for both renders.
 REF_DIE = (0.0, 0.0, 3932.0, 5122.0)
 
+# Same outline/structural layers lay2img.py keeps -- enough to show pad
+# bodies & ring while dropping dense metal fill that would flood the image.
+ENABLED_LAYERS = {
+    (22, 0), (21, 0), (204, 0), (55, 0), (30, 0), (32, 0), (31, 0),
+    (49, 0), (33, 0), (34, 0), (35, 0), (36, 0), (38, 0), (42, 0),
+    (40, 0), (46, 0), (41, 0), (81, 0), (37, 0),
+}
+
 
 def render(gds: str, width: int, height: int, world) -> Image.Image:
     """Render *gds* to an RGBA image of (width, height) px covering the
     micron rectangle *world* = (x0, y0, x1, y1).  Geometry outside the
     window is clipped; the bitmap scale is identical for every call with
-    the same world+size, so coordinates map to identical pixels."""
+    the same world+size, so coordinates map to identical pixels.  Only
+    pad/outline layers are shown (dense fill is hidden) so individual pads
+    are distinguishable in the final filled GDS."""
     lv = klay.LayoutView()
     lv.set_config("background-color", "#000000")
     lv.set_config("grid-visible", "false")
@@ -47,6 +58,17 @@ def render(gds: str, width: int, height: int, world) -> Image.Image:
     lv.set_config("text-visible", "false")
     lv.load_layout(gds, 0)
     lv.max_hier()
+
+    pdk_root = os.getenv("PDK_ROOT", "gf180mcu")
+    pdk = os.getenv("PDK", "gf180mcuD")
+    lyp = os.path.join(pdk_root, pdk, "libs.tech", "klayout",
+                       "tech", "gf180mcu.lyp")
+    if os.path.exists(lyp):
+        lv.load_layer_props(lyp)
+        for lp in lv.each_layer():
+            lp.visible = (lp.source_layer, lp.source_datatype) \
+                in ENABLED_LAYERS
+
     x0, y0, x1, y1 = world
     lv.zoom_box(kdb.DBox(x0, y0, x1, y1))
     lv.timer()
