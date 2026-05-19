@@ -22,14 +22,12 @@ CORE_AREA: [442, 442, 3490, 2119]
 
 VERILOG_DEFINES: ["SLOT_1X0P5_3SIDE"]
 
-# Partial padring (3-sided): use partial PDN script
-PDN_CFG: dir::pdn_partial.tcl
-
-# True U-shaped ring: delete the core-ring metal on the bare SOUTH edge
-# after pdngen has built the closed ring and wired the pads. The internal
-# Metal2/Metal3 stripe mesh + std-cell rails still deliver power everywhere,
-# so PSM-0069 connectivity is preserved.
-PDN_BARE_EDGES: "south"
+# True 3-sided (U-shaped) core ring: pdn_uring.tcl builds the normal
+# closed ring + pad connections, then deletes the ring metal on the bare
+# SOUTH edge (auto-detected from the empty PAD_SOUTH list). The internal
+# Metal2/Metal3 stripe mesh + std-cell rails still deliver power
+# everywhere, so PSM-0069 connectivity is preserved.
+PDN_CFG: dir::pdn_uring.tcl
 
 # PAD_SOUTH: empty -- this is the bare cut edge.
 PAD_SOUTH: []
