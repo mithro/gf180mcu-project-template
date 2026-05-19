@@ -158,24 +158,61 @@ proc pdn_remove_bare_edge_ring { bare_edges } {
          (no IO pads behind bare edge; redundant ring metal)."
 }
 
-# Auto-detect bare edges from the per-edge pad lists. An edge is bare when
-# its PAD_<side> list contains no pad instances. The env value may be an
-# empty string, "[]", "{}" or unset depending on how the empty YAML list is
-# marshalled, so strip list/grouping punctuation and whitespace and treat a
-# remaining-empty value as "no pads".
+# Auto-detect bare edges from the PLACED IO pad instances in odb.
+#
+# The PAD_<side> config lists are NOT exposed as $::env at the GeneratePDN
+# step (they exist at the PadRing step, which is why pad_cfg.tcl can read
+# them, but not here) — relying on them made every edge look empty and
+# deleted the entire ring. Instead, classify each placed pad-type instance
+# by which die-edge margin band its centre falls in: an edge with zero pad
+# instances has no padring and is therefore bare.
+#
+# Bands are defined relative to the core rectangle (pads sit between the die
+# boundary and the core). Corner cells fall OUTSIDE the core on both axes
+# and so match no single edge band — they are naturally excluded.
 proc pdn_detect_bare_edges {} {
-    set bare [list]
-    foreach {edge var} {north PAD_NORTH south PAD_SOUTH east PAD_EAST west PAD_WEST} {
-        set val ""
-        if { [info exists ::env($var)] } {
-            set val $::env($var)
+    set block [ord::get_db_block]
+    if { $block == "NULL" } {
+        return [list]
+    }
+    set core [$block getCoreArea]
+    set cxlo [$core xMin]
+    set cylo [$core yMin]
+    set cxhi [$core xMax]
+    set cyhi [$core yMax]
+
+    array set count {north 0 south 0 east 0 west 0}
+    foreach inst [$block getInsts] {
+        set master [$inst getMaster]
+        set type [$master getType]
+        # PAD, PAD_INPUT/OUTPUT/INOUT/POWER/SPACER/AREAIO all start "PAD".
+        if { ![string match -nocase "PAD*" $type] } {
+            continue
         }
-        # Remove [] {} , and whitespace; anything left means real pad names.
-        regsub -all {[\[\]\{\}, \t\n\r]} $val "" stripped
-        if { $stripped eq "" } {
+        set bb [$inst getBBox]
+        set ix [expr {([$bb xMin] + [$bb xMax]) / 2}]
+        set iy [expr {([$bb yMin] + [$bb yMax]) / 2}]
+
+        if { $iy < $cylo && $ix >= $cxlo && $ix <= $cxhi } {
+            incr count(south)
+        } elseif { $iy > $cyhi && $ix >= $cxlo && $ix <= $cxhi } {
+            incr count(north)
+        } elseif { $ix < $cxlo && $iy >= $cylo && $iy <= $cyhi } {
+            incr count(west)
+        } elseif { $ix > $cxhi && $iy >= $cylo && $iy <= $cyhi } {
+            incr count(east)
+        }
+    }
+
+    set bare [list]
+    foreach edge {north south east west} {
+        if { $count($edge) == 0 } {
             lappend bare $edge
         }
     }
+    utl::info PDN 9003 \
+        "pdn_uring.tcl pad census N=$count(north) S=$count(south)\
+         E=$count(east) W=$count(west) -> bare edge(s): \"$bare\"."
     return $bare
 }
 
@@ -193,12 +230,24 @@ proc pdngen { args } {
     }
     if { $is_build } {
         set bare [pdn_detect_bare_edges]
-        if { [llength $bare] > 0 } {
-            pdn_remove_bare_edge_ring $bare
-        } else {
+        set n [llength $bare]
+        # Safety: a valid chip always has pads on >= 3 edges, so at most 2
+        # edges can legitimately be bare (3-side -> 1, quarter -> 2). If
+        # detection reports >= 3 bare edges it is a detection failure;
+        # removing that much ring would destroy power connectivity
+        # (PSM-0069). Fall back to the proven closed ring instead.
+        if { $n == 0 } {
             utl::info PDN 9002 \
-                "pdn_uring.tcl: no empty PAD_<side> list detected; keeping\
-                 closed 4-sided ring (nothing to do)."
+                "pdn_uring.tcl: no bare edge detected; keeping closed\
+                 4-sided ring (nothing to do)."
+        } elseif { $n >= 3 } {
+            utl::warn PDN 9004 \
+                "pdn_uring.tcl: $n bare edges detected (\"$bare\") — implausible\
+                 (a chip needs pads on >= 3 edges). Treating as a detection\
+                 failure and KEEPING the closed 4-sided ring to preserve\
+                 power connectivity."
+        } else {
+            pdn_remove_bare_edge_ring $bare
         }
     }
     return $rc
