@@ -142,9 +142,20 @@ jobs:
             --ref tmp/gds/1x1/chip_top.gds \
             --new tmp/gds/1x0p5_3side_exact/chip_top.gds \
             --out docs/overlays/1x0p5_3side_exact_gds_overlay.png
-      - name: Numeric coordinate proof
+      - name: Numeric coordinate proof (closed-form)
         run: |
-          uv run scripts/verify_exact_pad_coords.py | tee $GITHUB_STEP_SUMMARY
+          uv run scripts/verify_exact_pad_coords.py | tee -a $GITHUB_STEP_SUMMARY
+      - name: True-silicon coordinate proof (built GDS)
+        run: |
+          echo '## True-silicon pad-coordinate proof' >> $GITHUB_STEP_SUMMARY
+          uv run scripts/verify_exact_pad_gds.py \
+            --ref tmp/gds/1x1/chip_top.gds \
+            --new tmp/gds/0p5x1_3side_exact/chip_top.gds \
+            --expect-exact 32 --max-relocated 2 | tee -a $GITHUB_STEP_SUMMARY
+          uv run scripts/verify_exact_pad_gds.py \
+            --ref tmp/gds/1x1/chip_top.gds \
+            --new tmp/gds/1x0p5_3side_exact/chip_top.gds \
+            --expect-exact 33 --max-relocated 2 | tee -a $GITHUB_STEP_SUMMARY
       - name: Upload overlays
         uses: actions/upload-artifact@v4
         with:
