@@ -46,3 +46,26 @@
 `define NUM_ANALOG_PADS 2
 
 `endif
+
+`ifdef SLOT_0P5X0P5_2SIDE_EXACT
+
+// Exact-pad quarter slot_1x1 (N+E edges = bare cuts).
+// Pad counts == the slot_1x1 pads that survive on the kept side.
+// (analog pads are relocated, see slot config header).
+
+`ifdef NUM_DVDD_PADS_OVERRIDE
+  `define NUM_DVDD_PADS `NUM_DVDD_PADS_OVERRIDE
+`else
+  `define NUM_DVDD_PADS 1
+`endif
+`ifdef NUM_DVSS_PADS_OVERRIDE
+  `define NUM_DVSS_PADS `NUM_DVSS_PADS_OVERRIDE
+`else
+  `define NUM_DVSS_PADS 1
+`endif
+
+`define NUM_INPUT_PADS 6
+`define NUM_BIDIR_PADS 4
+`define NUM_ANALOG_PADS 2
+
+`endif

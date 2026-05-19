@@ -115,6 +115,7 @@ def kind(name: str) -> str:
 
 
 def verify(cfg_name: str, cut: str):
+    """cut is a string of bare-cut edge letters (e.g. "E", "N", or "NE")."""
     one_pos, one_phys = load_1x1()
     data = yaml.safe_load((SLOTS / f"slot_{cfg_name}.yaml").read_text())
     die = data["DIE_AREA"]
@@ -136,7 +137,7 @@ def verify(cfg_name: str, cut: str):
     n_exact = 0
     for e, key in (("S", "PAD_SOUTH"), ("E", "PAD_EAST"),
                    ("N", "PAD_NORTH"), ("W", "PAD_WEST")):
-        names_1x1 = one_phys[e] if e != cut else []
+        names_1x1 = one_phys[e] if e not in cut else []
         # survivors keep their relative order; rebuild ordinal list:
         dim = dw if e in "SN" else dh
         limit = dim - ES - CORNER
@@ -186,6 +187,7 @@ def main() -> int:
     ok = True
     ok &= verify("0p5x1_3side_exact", cut="E")
     ok &= verify("1x0p5_3side_exact", cut="N")
+    ok &= verify("0p5x0p5_2side_exact", cut="NE")
     print("\n" + ("PASS: all kept pads have 0.0 um delta vs slot_1x1"
                    if ok else "FAIL: non-zero delta found"))
     return 0 if ok else 1
