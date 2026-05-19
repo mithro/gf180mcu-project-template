@@ -24,10 +24,17 @@ permissions:
   pages: write
   id-token: write
 
-# Allow only one deployment at a time
+# Allow only one deployment at a time, but DO NOT cancel an in-progress
+# run. slot-docs is triggered very frequently (workflow_run after CI on
+# every branch, plus pushes); with cancel-in-progress:true every new
+# trigger killed the previous run before it could finish aggregating
+# images and deploying, so the robust-downloader page (no "-" cells)
+# never actually published. With cancel-in-progress:false the runs
+# serialize and each completes; the latest deploys the freshest
+# aggregated content (GitHub Pages deploys are idempotent).
 concurrency:
   group: "pages"
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
