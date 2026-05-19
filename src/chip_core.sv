@@ -98,7 +98,22 @@ module chip_core #(
         .Q    (sram_out)
     );
 
-    assign bidir_out = count ^ {{(NUM_BIDIR_PADS-8){1'b0}}, sram_out};
+    // XOR the counter with the 8-bit SRAM output. sram_out must be matched
+    // to NUM_BIDIR_PADS width. For slots with >= 8 bidir pads this is the
+    // original zero-extension (behaviourally unchanged). Tiny slots (e.g.
+    // the exact-pad quarter) can have < 8 bidir pads, where the old
+    // {(NUM_BIDIR_PADS-8){1'b0}} repeat count goes negative and fails
+    // elaboration; there we truncate sram_out to the low NUM_BIDIR_PADS bits.
+    logic [NUM_BIDIR_PADS-1:0] sram_ext;
+    generate
+        if (NUM_BIDIR_PADS >= 8) begin : gen_sram_ext_wide
+            assign sram_ext = {{(NUM_BIDIR_PADS-8){1'b0}}, sram_out};
+        end else begin : gen_sram_ext_narrow
+            assign sram_ext = sram_out[NUM_BIDIR_PADS-1:0];
+        end
+    endgenerate
+
+    assign bidir_out = count ^ sram_ext;
 
 endmodule
 
