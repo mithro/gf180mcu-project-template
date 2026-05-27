@@ -184,9 +184,20 @@ proc pdn_detect_bare_edges {} {
     array set count {north 0 south 0 east 0 west 0}
     foreach inst [$block getInsts] {
         set master [$inst getMaster]
-        set type [$master getType]
-        # PAD, PAD_INPUT/OUTPUT/INOUT/POWER/SPACER/AREAIO all start "PAD".
-        if { ![string match -nocase "PAD*" $type] } {
+        set mname [$master getName]
+        # Count ONLY real bondable IO pads (signal/power). LibreLane builds a
+        # continuous padframe with filler/corner/breaker cells (gf180mcu IO
+        # cells named *fill*, *__cor*, *brk*) around ALL edges — including the
+        # bare one — so counting every PAD-type cell makes the bare edge look
+        # populated (observed E=424 fillers on a bare east edge) and the ring
+        # is never trimmed. Real pads exist only on edges that actually have
+        # IO; an edge with zero real pads is bare.
+        if { ![string match -nocase "*_io__*" $mname] } {
+            continue
+        }
+        if { [string match -nocase "*fill*" $mname]
+             || [string match -nocase "*__cor*" $mname]
+             || [string match -nocase "*brk*" $mname] } {
             continue
         }
         set bb [$inst getBBox]
