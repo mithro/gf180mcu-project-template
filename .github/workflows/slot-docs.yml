@@ -17,6 +17,7 @@ on:
       - "scripts/generate_slot_docs.py"
       - "scripts/create_thumbnail.py"
       - "scripts/normalize_images.py"
+      - "scripts/download_slot_images.py"
 
 # Sets permissions for GitHub Pages deployment
 permissions:
