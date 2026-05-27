@@ -79,23 +79,38 @@ def list_runs(repo: str, branch: str, max_runs: int) -> list[dict]:
 
 
 def list_image_artifacts(repo: str, run_id: int) -> list[dict]:
-    """Non-expired ``*_image`` artifacts for a run."""
+    """Non-expired ``*_image`` artifacts for a run, across ALL pages.
+
+    The full 74-config matrix uploads 148 artifacts (74 gds + 74 image) per
+    run. A non-paginated ``?per_page=100`` request silently returns only the
+    first 100, dropping ~48 — so a config whose artifact lands in the
+    truncated tail of every run it appears in (e.g. a slower-building
+    partial-padring whose upload is consistently late) is never seen and
+    renders as a ``-`` on the page. ``gh api --paginate`` walks every page;
+    the ``--jq`` filter runs per page and the ``id<TAB>name`` lines are
+    concatenated across pages.
+    """
     result = subprocess.run(
         [
             "gh",
             "api",
+            "--paginate",
             f"repos/{repo}/actions/runs/{run_id}/artifacts?per_page=100",
+            "--jq",
+            '.artifacts[] | select((.name | endswith("_image")) '
+            'and (.expired | not)) | "\(.id)\t\(.name)"',
         ],
         capture_output=True,
         text=True,
         check=True,
     )
-    payload = json.loads(result.stdout)
     out = []
-    for art in payload.get("artifacts", []):
-        name = art.get("name", "")
-        if name.endswith("_image") and not art.get("expired", False):
-            out.append({"name": name, "id": art["id"]})
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        art_id, name = line.split("\t", 1)
+        out.append({"name": name, "id": int(art_id)})
     return out
 
 
