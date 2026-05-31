@@ -115,11 +115,51 @@ lx_place $block PAD_WEST IO_WEST 7 [lindex $cp_W 7]  ;# inputs[5].pad @ 1x1 ordi
 puts "\[INFO\] Placing corner cells…"
 place_corners $::env(PAD_CORNER)
 
+# Drop the bare-edge corner cell(s): no IO row abuts them, they would
+# just be isolated structures on the bare cut edge.
+set _bare_edges [list "north"]
+set _xmid [expr {([lindex $::env(DIE_AREA) 0] + [lindex $::env(DIE_AREA) 2]) / 2.0}]
+set _ymid [expr {([lindex $::env(DIE_AREA) 1] + [lindex $::env(DIE_AREA) 3]) / 2.0}]
+set _units [$block getDefUnits]
+set _bare_corner_insts [list]
+foreach _inst [$block getInsts] {
+    if { [[$_inst getMaster] getName] ne $::env(PAD_CORNER) } { continue }
+    set _bb [$_inst getBBox]
+    set _cx [expr {([$_bb xMin] + [$_bb xMax]) / 2.0 / $_units}]
+    set _cy [expr {([$_bb yMin] + [$_bb yMax]) / 2.0 / $_units}]
+    set _is_north [expr {$_cy > $_ymid}]
+    set _is_east  [expr {$_cx > $_xmid}]
+    set _drop 0
+    foreach _edge $_bare_edges {
+        switch -- $_edge {
+            east  { if { $_is_east }      { set _drop 1 } }
+            west  { if { ! $_is_east }    { set _drop 1 } }
+            north { if { $_is_north }     { set _drop 1 } }
+            south { if { ! $_is_north }   { set _drop 1 } }
+        }
+        if { $_drop } { break }
+    }
+    if { $_drop } { lappend _bare_corner_insts $_inst }
+}
+set _destroyed 0
+foreach _inst $_bare_corner_insts {
+    odb::dbInst_destroy $_inst
+    incr _destroyed
+}
+puts "\[INFO\] Bare-edge corner cleanup (bare: $_bare_edges): destroyed $_destroyed corner cell(s)."
+
 puts "\[INFO\] Placing filler cells…"
-place_io_fill -row IO_NORTH {*}$::env(PAD_FILLERS)
-place_io_fill -row IO_SOUTH {*}$::env(PAD_FILLERS)
-place_io_fill -row IO_WEST {*}$::env(PAD_FILLERS)
-place_io_fill -row IO_EAST {*}$::env(PAD_FILLERS)
+# Skip `place_io_fill` on bare-edge rows: no pads + no corners on
+# that row means filler cells would be the only content, which is
+# pure waste on a cut edge.
+foreach _row {IO_NORTH IO_SOUTH IO_WEST IO_EAST} {
+    set _edge_lc [string tolower [string range $_row 3 end]]
+    if { [lsearch -exact $_bare_edges $_edge_lc] >= 0 } {
+        puts "\[INFO\] Skipping place_io_fill on $_row (bare cut edge)"
+        continue
+    }
+    place_io_fill -row $_row {*}$::env(PAD_FILLERS)
+}
 
 puts "\[INFO\] Connecting ring signals…"
 connect_by_abutment
