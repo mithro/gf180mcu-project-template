@@ -154,17 +154,19 @@ jobs:
       - name: Numeric coordinate proof (closed-form)
         run: |
           uv run scripts/verify_exact_pad_coords.py | tee -a $GITHUB_STEP_SUMMARY
-      - name: True-silicon coordinate proof (built GDS)
+      - name: True-silicon coordinate proof (built GDS, strict)
         run: |
-          echo '## True-silicon pad-coordinate proof' >> $GITHUB_STEP_SUMMARY
-          uv run scripts/verify_exact_pad_gds.py \
-            --ref tmp/gds/1x1/chip_top.gds \
-            --new tmp/gds/0p5x1_3side_exact/chip_top.gds \
-            --expect-exact 32 --max-relocated 2 | tee -a $GITHUB_STEP_SUMMARY
-          uv run scripts/verify_exact_pad_gds.py \
-            --ref tmp/gds/1x1/chip_top.gds \
-            --new tmp/gds/1x0p5_3side_exact/chip_top.gds \
-            --expect-exact 33 --max-relocated 2 | tee -a $GITHUB_STEP_SUMMARY
+          set -o pipefail
+          echo '## True-silicon pad-coordinate proof (strict)' >> $GITHUB_STEP_SUMMARY
+          echo 'Every pad in an exact slot must sit on a slot_1x1 coordinate; any unaligned or extra pad fails.' >> $GITHUB_STEP_SUMMARY
+          rc=0
+          for cfg in 0p5x1_3side_exact 1x0p5_3side_exact 0p5x0p5_2side_exact; do
+            echo "### $cfg" >> $GITHUB_STEP_SUMMARY
+            uv run scripts/verify_exact_pad_gds.py \
+              --ref tmp/gds/1x1/chip_top.gds \
+              --new tmp/gds/$cfg/chip_top.gds | tee -a $GITHUB_STEP_SUMMARY || rc=1
+          done
+          exit $rc
       - name: Upload overlays
         uses: actions/upload-artifact@v4
         with:
