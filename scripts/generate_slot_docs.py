@@ -607,7 +607,7 @@ def generate_json(
     }
 
     # Sort by slot order: 1x1 first
-    slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5", "0p5x1_3side", "1x0p5_3side"]
+    slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5", "0p5x1_3side", "1x0p5_3side", "0p5x1_3side_exact", "1x0p5_3side_exact", "0p5x0p5_2side_exact"]
     sorted_names = sorted(slots.keys(), key=lambda x: slot_order.index(x) if x in slot_order else 99)
 
     for name in sorted_names:
@@ -725,13 +725,18 @@ def generate_markdown(slots: dict[str, SlotInfo], output_path: Path) -> None:
         "|------|----------|-----------|-----------|-------------|",
     ]
 
-    slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5", "0p5x1_3side", "1x0p5_3side"]
+    slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5", "0p5x1_3side", "1x0p5_3side", "0p5x1_3side_exact", "1x0p5_3side_exact", "0p5x0p5_2side_exact"]
     sorted_names = sorted(slots.keys(), key=lambda x: slot_order.index(x) if x in slot_order else 99)
 
     # Standard slots have a full 4-sided padring; 3-side slots are half-sized
-    # variants with a bare cut edge and are listed in their own section.
-    standard_names = [n for n in sorted_names if not n.endswith("_3side")]
+    # variants with a bare cut edge; *_exact variants pin retained pads to their
+    # exact slot_1x1 coordinates. Each kind is listed in its own section.
+    exact_names = [n for n in sorted_names if n.endswith("_exact")]
     threeside_names = [n for n in sorted_names if n.endswith("_3side")]
+    standard_names = [
+        n for n in sorted_names
+        if not n.endswith("_3side") and not n.endswith("_exact")
+    ]
 
     def dimension_row(slot: SlotInfo) -> str:
         die_size = f"{slot.die_width_mm:.2f} × {slot.die_height_mm:.2f}mm ({slot.die_area_mm2:.2f}mm²)"
@@ -779,6 +784,29 @@ def generate_markdown(slots: dict[str, SlotInfo], output_path: Path) -> None:
             "|------|---------------|--------|--------|-----------|------|------|------------|------------|",
         ])
         for name in threeside_names:
+            lines.append(io_row(slots[name]))
+
+    if exact_names:
+        lines.extend([
+            "",
+            "## Exact 3-Side Slots",
+            "",
+            "Exact-pad variants of the 3-side slots. Every retained signal/power "
+            "pad is pinned (via a custom PAD_CFG) to the exact (x, y) it occupies "
+            "in a real slot_1x1 build, so a design drops into the half or quarter "
+            "slot with slot_1x1-compatible pad placement.",
+            "",
+            "| Slot | Die Size | Usable Silicon | Core Area | IO Overhead |",
+            "|------|----------|-----------|-----------|-------------|",
+        ])
+        for name in exact_names:
+            lines.append(dimension_row(slots[name]))
+        lines.extend([
+            "",
+            "| Slot | Bidirectional | Inputs | Analog | Total IOs | DVDD | DVSS | Power Pads | Total Pads |",
+            "|------|---------------|--------|--------|-----------|------|------|------------|------------|",
+        ])
+        for name in exact_names:
             lines.append(io_row(slots[name]))
 
     lines.extend([
@@ -895,13 +923,18 @@ def generate_html(
     configs: dict[str, list[SlotInfo]] | None = None,
 ) -> None:
     """Generate HTML file with slot information for GitHub Pages."""
-    slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5", "0p5x1_3side", "1x0p5_3side"]
+    slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5", "0p5x1_3side", "1x0p5_3side", "0p5x1_3side_exact", "1x0p5_3side_exact", "0p5x0p5_2side_exact"]
     sorted_names = sorted(slots.keys(), key=lambda x: slot_order.index(x) if x in slot_order else 99)
 
     # Standard slots have a full 4-sided padring; 3-side slots are half-sized
-    # variants with a bare cut edge. They are presented in separate groups.
-    standard_names = [n for n in sorted_names if not n.endswith("_3side")]
+    # variants with a bare cut edge; *_exact variants additionally pin retained
+    # pads to their exact slot_1x1 coordinates. Each kind gets its own group.
+    exact_names = [n for n in sorted_names if n.endswith("_exact")]
     threeside_names = [n for n in sorted_names if n.endswith("_3side")]
+    standard_names = [
+        n for n in sorted_names
+        if not n.endswith("_3side") and not n.endswith("_exact")
+    ]
 
     # Check which images exist
     def get_image_path(name: str, variant: str) -> str | None:
@@ -1165,6 +1198,85 @@ def generate_html(
     </div>
 """
 
+    # Exact 3-Side Slot Configurations: the *_exact variants pin every retained
+    # pad to its exact slot_1x1 coordinate. Their own group, with the pad-overlay
+    # verification tucked into a fold-out.
+    if exact_names:
+        html += """
+    <hr class="section-divider">
+
+    <div class="section-group">
+        <div class="section-group-title">Exact 3-Side Slot Configurations</div>
+
+        <div class="section">
+            <h2>Available Slots</h2>
+            <p>Exact-pad variants of the 3-side slots. Every retained
+            signal/power pad is pinned (via a custom <code>PAD_CFG</code>) to the
+            exact (x,&nbsp;y) it occupies in a real <code>slot_1x1</code> build,
+            so a design drops into the half/quarter slot with slot_1x1-compatible
+            pad placement.</p>
+            <div class="slots-grid">
+"""
+        html += _render_slot_cards(exact_names, slots, get_image_path)
+        html += """        </div>
+        </div>
+
+        <div class="section">
+            <h2>Detailed Specifications</h2>
+""" + _DETAIL_TABLE_HEAD
+        html += _render_detail_rows(exact_names, slots)
+        html += """            </tbody>
+            </table>
+        </div>
+"""
+
+        # Exact-pad 3-side verification overlays, as a fold-out in this group.
+        overlay_specs = [
+            ("0p5x1_3side_exact",
+             "0.5×1 3-side EXACT (half width, east edge is the bare cut)"),
+            ("1x0p5_3side_exact",
+             "1×0.5 3-side EXACT (half height, north edge is the bare cut)"),
+            ("0p5x0p5_2side_exact",
+             "0.5×0.5 2-side EXACT (quarter, north + east edges are the "
+             "bare cuts)"),
+        ]
+        have_overlays = []
+        if images_dir is not None:
+            for cfg_name, _label in overlay_specs:
+                if (images_dir / "overlays" / f"{cfg_name}_overlay.png").exists():
+                    have_overlays.append(cfg_name)
+        if have_overlays:
+            html += """
+        <div class="section">
+            <details style="margin-bottom: 15px;">
+                <summary style="cursor: pointer; font-weight: bold; padding: 10px; background: #f5f5f5; border-radius: 4px;">Exact-Pad 3-Side Verification</summary>
+                <h2>slot_1x1 vs Exact 3-Side Pad Overlay</h2>
+                <p>The <code>*_3side_exact</code> configs pin every retained
+                signal/power pad (via a custom <code>PAD_CFG</code>) to the
+                <strong>exact (x,&nbsp;y)</strong> it occupies in a real
+                <code>slot_1x1</code> build. Below,
+                <span style="color:#2876ff"><strong>blue</strong></span> =
+                slot_1x1 pads,
+                <span style="color:#e61414"><strong>red outline</strong></span> =
+                the exact 3-side pads. Every red box bounds its blue pad with a
+                verified <strong>0.0&nbsp;µm</strong> offset; blue-only pads
+                sit across the bare cut edge and are intentionally dropped.</p>
+"""
+            for cfg_name, label in overlay_specs:
+                if cfg_name not in have_overlays:
+                    continue
+                rel = f"overlays/{cfg_name}_overlay.png"
+                html += f"""                <h3>{label}</h3>
+                <img src="{rel}" alt="{cfg_name} overlay"
+                     style="max-width:100%;cursor:pointer;border:1px solid #ddd"
+                     onclick="openModal('{rel}')">
+"""
+            html += """            </details>
+        </div>
+"""
+        html += """    </div>
+"""
+
     html += """
     <hr class="section-divider">
 
@@ -1288,51 +1400,6 @@ def generate_html(
 
     # Close the Advanced Slot Configurations section-group
     html += """    </div>
-"""
-
-    # Exact-pad 3-side verification overlays (if rendered).
-    overlay_specs = [
-        ("0p5x1_3side_exact",
-         "0.5×1 3-side EXACT (half width, east edge is the bare cut)"),
-        ("1x0p5_3side_exact",
-         "1×0.5 3-side EXACT (half height, north edge is the bare cut)"),
-        ("0p5x0p5_2side_exact",
-         "0.5×0.5 2-side EXACT (quarter, north + east edges are the "
-         "bare cuts)"),
-    ]
-    have_overlays = []
-    if images_dir is not None:
-        for cfg_name, _label in overlay_specs:
-            if (images_dir / "overlays" / f"{cfg_name}_overlay.png").exists():
-                have_overlays.append(cfg_name)
-    if have_overlays:
-        html += """
-    <div class="section-group">
-        <div class="section-group-title">Exact-Pad 3-Side Verification</div>
-        <div class="section">
-            <h2>slot_1x1 vs Exact 3-Side Pad Overlay</h2>
-            <p>The <code>*_3side_exact</code> configs pin every retained
-            signal/power pad (via a custom <code>PAD_CFG</code>) to the
-            <strong>exact (x,&nbsp;y)</strong> it occupies in a real
-            <code>slot_1x1</code> build. Below,
-            <span style="color:#2876ff"><strong>blue</strong></span> =
-            slot_1x1 pads,
-            <span style="color:#e61414"><strong>red outline</strong></span> =
-            the exact 3-side pads. Every red box bounds its blue pad with a
-            verified <strong>0.0&nbsp;µm</strong> offset; blue-only pads
-            sit across the bare cut edge and are intentionally dropped.</p>
-"""
-        for cfg_name, label in overlay_specs:
-            if cfg_name not in have_overlays:
-                continue
-            rel = f"overlays/{cfg_name}_overlay.png"
-            html += f"""            <h3>{label}</h3>
-            <img src="{rel}" alt="{cfg_name} overlay"
-                 style="max-width:100%;cursor:pointer;border:1px solid #ddd"
-                 onclick="openModal('{rel}')">
-"""
-        html += """        </div>
-    </div>
 """
 
     html += """
