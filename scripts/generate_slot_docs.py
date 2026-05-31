@@ -725,13 +725,18 @@ def generate_markdown(slots: dict[str, SlotInfo], output_path: Path) -> None:
         "|------|----------|-----------|-----------|-------------|",
     ]
 
-    slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5", "0p5x1_3side", "1x0p5_3side"]
+    slot_order = ["1x1", "0p5x1", "1x0p5", "0p5x0p5", "0p5x1_3side", "1x0p5_3side", "0p5x1_3side_exact", "1x0p5_3side_exact", "0p5x0p5_2side_exact"]
     sorted_names = sorted(slots.keys(), key=lambda x: slot_order.index(x) if x in slot_order else 99)
 
     # Standard slots have a full 4-sided padring; 3-side slots are half-sized
-    # variants with a bare cut edge and are listed in their own section.
-    standard_names = [n for n in sorted_names if not n.endswith("_3side")]
+    # variants with a bare cut edge; *_exact variants pin retained pads to their
+    # exact slot_1x1 coordinates. Each kind is listed in its own section.
+    exact_names = [n for n in sorted_names if n.endswith("_exact")]
     threeside_names = [n for n in sorted_names if n.endswith("_3side")]
+    standard_names = [
+        n for n in sorted_names
+        if not n.endswith("_3side") and not n.endswith("_exact")
+    ]
 
     def dimension_row(slot: SlotInfo) -> str:
         die_size = f"{slot.die_width_mm:.2f} × {slot.die_height_mm:.2f}mm ({slot.die_area_mm2:.2f}mm²)"
@@ -779,6 +784,29 @@ def generate_markdown(slots: dict[str, SlotInfo], output_path: Path) -> None:
             "|------|---------------|--------|--------|-----------|------|------|------------|------------|",
         ])
         for name in threeside_names:
+            lines.append(io_row(slots[name]))
+
+    if exact_names:
+        lines.extend([
+            "",
+            "## Exact 3-Side Slots",
+            "",
+            "Exact-pad variants of the 3-side slots. Every retained signal/power "
+            "pad is pinned (via a custom PAD_CFG) to the exact (x, y) it occupies "
+            "in a real slot_1x1 build, so a design drops into the half or quarter "
+            "slot with slot_1x1-compatible pad placement.",
+            "",
+            "| Slot | Die Size | Usable Silicon | Core Area | IO Overhead |",
+            "|------|----------|-----------|-----------|-------------|",
+        ])
+        for name in exact_names:
+            lines.append(dimension_row(slots[name]))
+        lines.extend([
+            "",
+            "| Slot | Bidirectional | Inputs | Analog | Total IOs | DVDD | DVSS | Power Pads | Total Pads |",
+            "|------|---------------|--------|--------|-----------|------|------|------------|------------|",
+        ])
+        for name in exact_names:
             lines.append(io_row(slots[name]))
 
     lines.extend([
