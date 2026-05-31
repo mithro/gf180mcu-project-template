@@ -29,7 +29,9 @@ module chip_top #(
     inout  wire [NUM_BIDIR_PADS-1:0] bidir_PAD
 
     `ifndef MAX_IO_CONFIG
+    `ifndef NO_ANALOG_PADS
     ,inout  wire [NUM_ANALOG_PADS-1:0] analog_PAD
+    `endif
     `endif
 );
 
@@ -159,6 +161,7 @@ module chip_top #(
     endgenerate
 
     `ifndef MAX_IO_CONFIG
+    `ifndef NO_ANALOG_PADS
     generate
     for (genvar i=0; i<NUM_ANALOG_PADS; i++) begin : analog
         (* keep *)
@@ -173,6 +176,7 @@ module chip_top #(
         );
     end
     endgenerate
+    `endif
     `endif
 
     // Core design
@@ -206,7 +210,9 @@ module chip_top #(
         .bidir_pd   (bidir_CORE2PAD_PD)
 
         `ifndef MAX_IO_CONFIG
+        `ifndef NO_ANALOG_PADS
         ,.analog     (analog_PAD)
+        `endif
         `endif
     );
     

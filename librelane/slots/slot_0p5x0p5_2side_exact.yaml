@@ -2,10 +2,10 @@
 # scripts/generate_exact_3side_configs.py.  DO NOT EDIT BY HAND.
 #
 # Quarter-size slot_1x1 with the N+E edges as bare cut edges (kept SW corner).
-# Every signal/power pad is pinned (via a custom PAD_CFG) to the
-# EXACT (x,y) it occupies in a real slot_1x1 build.  2 analog pads
-# are relocated (not coordinate-preserved) only to keep the RTL
-# analog_PAD port from collapsing to [-1:0].
+# Every pad is pinned (via a custom PAD_CFG) to the EXACT (x,y) it
+# occupies in a real slot_1x1 build.  slot_1x1's analog pads sit on
+# the cut-away corner, so this slot has NO analog pads (the core-
+# unused analog_PAD port is dropped via NO_ANALOG_PADS).
 FP_SIZING: absolute
 DIE_AREA: [0, 0, 1966, 2561]
 CORE_AREA: [442, 442, 1524, 2119]
@@ -25,8 +25,7 @@ PAD_SOUTH: [
     "bidir\\[0\\].pad",
     "bidir\\[1\\].pad",
     "bidir\\[2\\].pad",
-    "bidir\\[3\\].pad",
-    "analog\\[0\\].pad"
+    "bidir\\[3\\].pad"
 ]
 
 PAD_EAST: []
@@ -41,6 +40,5 @@ PAD_WEST: [
     "inputs\\[2\\].pad",
     "inputs\\[3\\].pad",
     "inputs\\[4\\].pad",
-    "inputs\\[5\\].pad",
-    "analog\\[1\\].pad"
+    "inputs\\[5\\].pad"
 ]

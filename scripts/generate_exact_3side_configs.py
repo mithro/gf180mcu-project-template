@@ -39,11 +39,13 @@ for ``slot_1x1`` (die [0,0,3932,5122], 17 pads on S/N, 20 on E/W).  A pad
 
     offset + 75 <= die_dim_along_edge - 26 - 355
 
-Pads across / past the bare cut edge are dropped.  Two analog pads are added
-(relocated, *not* coordinate-preserved) purely to keep ``NUM_ANALOG_PADS`` >=
-1 so the RTL ``analog_PAD[NUM_ANALOG_PADS-1:0]`` port does not collapse to
-``[-1:0]`` (cf. commit 8e74c56).  Every *signal* and *power* pad keeps its
-exact slot_1x1 coordinate.
+Pads across / past the bare cut edge are dropped, and so is any pad whose
+slot_1x1 coordinate does not fit on the smaller die -- nothing is ever
+relocated to a non-slot_1x1 coordinate, so *every* emitted pad keeps its exact
+slot_1x1 (x, y).  slot_1x1's two analog pads sit on the NORTH far corner,
+which no half/quarter cut retains, so exact slots simply have no analog pads;
+the core-unused ``analog_PAD`` port is dropped via ``NO_ANALOG_PADS`` so its
+width never collapses to ``[-1:0]`` (cf. commit 8e74c56).
 """
 
 import sys
@@ -168,9 +170,11 @@ def load_1x1_phys_order() -> dict:
 def build(cfg: ExactConfig, phys: dict):
     """Compute retained pads per edge with their exact slot_1x1 offsets.
 
-    Returns (edges, analog_extra) where:
-      edges[edge] = list of dicts {kind, off1x1, name_1x1, ordinal}
-      analog_extra = list of dicts {edge, off} for the 2 relocated analog pads
+    Returns edges[edge] = list of {kind, off, src, ord} for every slot_1x1
+    pad whose exact coordinate still fits on the smaller die.  Pads whose
+    slot_1x1 coordinate falls in the cut-away region are dropped; nothing is
+    relocated, so every emitted pad is coordinate-exact.  (slot_1x1's analog
+    pads sit on the NORTH far corner that no cut retains -> no analog pads.)
     """
     die_w, die_h = cfg.die[2], cfg.die[3]
     edges = {"S": [], "N": [], "E": [], "W": []}
@@ -186,41 +190,17 @@ def build(cfg: ExactConfig, phys: dict):
                     {"kind": _kind(nm), "off": off, "src": nm, "ord": i}
                 )
 
-    # Two relocated analog pads (kept only so NUM_ANALOG_PADS >= 1; their
-    # coordinates are intentionally NOT slot_1x1-preserved -- slot_1x1's
-    # analog pads sit on the discarded side of the cut).  Park them in the
-    # gap between the last retained pad on an edge and that edge's cut-side
-    # corner so they never perturb a coordinate-pinned pad.
-    analog_extra = []
-    for e in "SNEW":
-        if len(analog_extra) == 2:
-            break
-        if e in cfg.cuts or not edges[e]:
-            continue
-        dim = die_w if e in "SN" else die_h
-        limit = dim - SEAL - CORNER
-        last = edges[e][-1]["off"] + IO_W
-        gap = limit - last
-        if gap >= IO_W + 1.0:
-            analog_extra.append({"edge": e, "off": round(last + 1.0, 1)})
-    if len(analog_extra) < 2:
-        raise RuntimeError(
-            f"{cfg.name}: could not park 2 analog pads (found "
-            f"{len(analog_extra)} free gaps)"
-        )
-    return edges, analog_extra
+    return edges
 
 
-def renumber(edges: dict, analog_extra: list):
+def renumber(edges: dict):
     """Assign contiguous per-type indices and produce the final per-edge
     ordered placement lists (matching the RTL generate loops).
 
-    Each placement is a dict:
-      {inst, off, ord1x1, exact}
-    where ``ord1x1`` is the pad's ordinal index along its edge in the FULL
-    slot_1x1 padring (used by the PAD_CFG to replay the stock cur_pos
-    arithmetic for byte-identical placement) and ``exact`` is True for
-    coordinate-preserved pads / False for the 2 relocated analog pads."""
+    Each placement is {inst, ord1x1}, where ``ord1x1`` is the pad's ordinal
+    index along its edge in the FULL slot_1x1 padring (used by the PAD_CFG to
+    replay the stock cur_pos arithmetic for byte-identical placement).  Every
+    placed pad is coordinate-exact -- there are no relocated pads."""
     ctr = {"bidir": 0, "input": 0, "analog": 0, "dvdd": 0, "dvss": 0}
     placements = {"S": [], "N": [], "E": [], "W": []}
 
@@ -239,27 +219,10 @@ def renumber(edges: dict, analog_extra: list):
             "dvss": f"dvss_pads\\\\[{idx}\\\\].pad",
         }[kind]
 
-    # Place the (relocated) analog pads first so they take analog[0], analog[1].
-    extra_by_edge = {}
-    for ax in analog_extra:
-        extra_by_edge.setdefault(ax["edge"], []).append(ax["off"])
-
     for e in "SNEW":
-        merged = [
-            (p["off"], p["kind"], p["ord"], True) for p in edges[e]
-        ]
-        for off in extra_by_edge.get(e, []):
-            merged.append((off, "analog", None, False))
-        merged.sort(key=lambda t: t[0])
-        for off, kind, ord1x1, exact in merged:
-            inst = inst_for(kind)
+        for p in sorted(edges[e], key=lambda d: d["off"]):
             placements[e].append(
-                {
-                    "inst": inst,
-                    "off": off,
-                    "ord1x1": ord1x1,
-                    "exact": exact,
-                }
+                {"inst": inst_for(p["kind"]), "ord1x1": p["ord"]}
             )
 
     counts = {k: ctr[k] for k in ctr}
@@ -279,10 +242,10 @@ def emit_yaml(cfg: ExactConfig, placements: dict) -> str:
     else:
         a(f"# Quarter-size slot_1x1 with the {'+'.join(cfg.cuts)} edges as "
           f"bare cut edges (kept SW corner).")
-    a("# Every signal/power pad is pinned (via a custom PAD_CFG) to the")
-    a("# EXACT (x,y) it occupies in a real slot_1x1 build.  2 analog pads")
-    a("# are relocated (not coordinate-preserved) only to keep the RTL")
-    a("# analog_PAD port from collapsing to [-1:0].")
+    a("# Every pad is pinned (via a custom PAD_CFG) to the EXACT (x,y) it")
+    a("# occupies in a real slot_1x1 build.  slot_1x1's analog pads sit on")
+    a("# the cut-away corner, so this slot has NO analog pads (the core-")
+    a("# unused analog_PAD port is dropped via NO_ANALOG_PADS).")
     a("FP_SIZING: absolute")
     a(f"DIE_AREA: {cfg.die}")
     a(f"CORE_AREA: {cfg.core}")
@@ -418,15 +381,10 @@ def emit_pad_cfg(cfg: ExactConfig, placements: dict) -> str:
         a(f"# {key} list order == placement order below (idx -> location).")
         a(f"set cp_{e} [lx_1x1_curpos {edge_die[e]} {edge_n[e]} {is_h}]")
         for idx, p in enumerate(pl):
-            if p["exact"]:
-                a(f'lx_place $block {key} {ROW[e]} {idx} '
-                  f'[lindex $cp_{e} {p["ord1x1"]}]'
-                  f'  ;# {p["inst"].replace(chr(92)*2, "")} '
-                  f'@ 1x1 ordinal {p["ord1x1"]}')
-            else:
-                a(f'lx_place $block {key} {ROW[e]} {idx} {p["off"]:.4f}'
-                  f'  ;# {p["inst"].replace(chr(92)*2, "")} '
-                  f'(relocated analog, NOT 1x1-preserved)')
+            a(f'lx_place $block {key} {ROW[e]} {idx} '
+              f'[lindex $cp_{e} {p["ord1x1"]}]'
+              f'  ;# {p["inst"].replace(chr(92)*2, "")} '
+              f'@ 1x1 ordinal {p["ord1x1"]}')
         a("")
     a('puts "\\[INFO\\] Placing corner cells…"')
     a("place_corners $::env(PAD_CORNER)")
@@ -540,7 +498,12 @@ def emit_defines_block(cfg: ExactConfig, counts: dict) -> str:
         "",
         hdr,
         "// Pad counts == the slot_1x1 pads that survive on the kept side.",
-        "// (analog pads are relocated, see slot config header).",
+        "// slot_1x1's analog pads sit in the cut-away corner and cannot be",
+        "// coordinate-preserved, so this slot has no analog pads; "
+        "NO_ANALOG_PADS",
+        "// drops the (core-unused) analog port so its width never goes -1:0.",
+        "",
+        "`define NO_ANALOG_PADS",
         "",
         "`ifdef NUM_DVDD_PADS_OVERRIDE",
         "  `define NUM_DVDD_PADS `NUM_DVDD_PADS_OVERRIDE",
@@ -570,8 +533,8 @@ def main() -> int:
     defines_blocks = []
     summary = []
     for cfg in CONFIGS:
-        edges, analog_extra = build(cfg, phys)
-        placements, counts = renumber(edges, analog_extra)
+        edges = build(cfg, phys)
+        placements, counts = renumber(edges)
 
         yaml_path = SLOTS_DIR / f"slot_{cfg.name}.yaml"
         yaml_path.write_text(emit_yaml(cfg, placements))
