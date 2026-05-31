@@ -431,9 +431,68 @@ def emit_pad_cfg(cfg: ExactConfig, placements: dict) -> str:
     a('puts "\\[INFO\\] Placing corner cells…"')
     a("place_corners $::env(PAD_CORNER)")
     a("")
+    # Drop corner cells + skip filler-row creation on the bare cut edge(s).
+    # OpenROAD's `place_corners` always places one corner per die corner; for
+    # cut edges there is no IO row to abut to on the bare side, so the
+    # resulting corner cell + filler row is isolated silicon waste. After
+    # `place_corners`, locate each corner cell by its bbox centre relative to
+    # the die centre and destroy the ones that sit on a bare edge. Then skip
+    # `place_io_fill` for the bare edge's row, leaving that side clean.
+    bare_letters = list(cfg.cuts)  # e.g. "NE" -> ["N", "E"]
+    bare_words = [
+        {"N": "north", "S": "south", "E": "east", "W": "west"}[ltr]
+        for ltr in bare_letters
+    ]
+    bare_tcl = " ".join(f'"{w}"' for w in bare_words)
+    a("# Drop the bare-edge corner cell(s): no IO row abuts them, they would")
+    a("# just be isolated structures on the bare cut edge.")
+    a(f"set _bare_edges [list {bare_tcl}]")
+    a("set _xmid [expr {([lindex $::env(DIE_AREA) 0] + "
+      "[lindex $::env(DIE_AREA) 2]) / 2.0}]")
+    a("set _ymid [expr {([lindex $::env(DIE_AREA) 1] + "
+      "[lindex $::env(DIE_AREA) 3]) / 2.0}]")
+    a("set _units [$block getDefUnits]")
+    a("set _bare_corner_insts [list]")
+    a("foreach _inst [$block getInsts] {")
+    a("    if { [[$_inst getMaster] getName] ne $::env(PAD_CORNER) } "
+      "{ continue }")
+    a("    set _bb [$_inst getBBox]")
+    a("    set _cx [expr {([$_bb xMin] + [$_bb xMax]) / 2.0 / $_units}]")
+    a("    set _cy [expr {([$_bb yMin] + [$_bb yMax]) / 2.0 / $_units}]")
+    a("    set _is_north [expr {$_cy > $_ymid}]")
+    a("    set _is_east  [expr {$_cx > $_xmid}]")
+    a("    set _drop 0")
+    a("    foreach _edge $_bare_edges {")
+    a("        switch -- $_edge {")
+    a("            east  { if { $_is_east }      { set _drop 1 } }")
+    a("            west  { if { ! $_is_east }    { set _drop 1 } }")
+    a("            north { if { $_is_north }     { set _drop 1 } }")
+    a("            south { if { ! $_is_north }   { set _drop 1 } }")
+    a("        }")
+    a("        if { $_drop } { break }")
+    a("    }")
+    a("    if { $_drop } { lappend _bare_corner_insts $_inst }")
+    a("}")
+    a("set _destroyed 0")
+    a("foreach _inst $_bare_corner_insts {")
+    a("    odb::dbInst_destroy $_inst")
+    a("    incr _destroyed")
+    a("}")
+    a('puts "\\[INFO\\] Bare-edge corner cleanup (bare: $_bare_edges): '
+      'destroyed $_destroyed corner cell(s)."')
+    a("")
     a('puts "\\[INFO\\] Placing filler cells…"')
-    for row in ("IO_NORTH", "IO_SOUTH", "IO_WEST", "IO_EAST"):
-        a(f"place_io_fill -row {row} {{*}}$::env(PAD_FILLERS)")
+    a("# Skip `place_io_fill` on bare-edge rows: no pads + no corners on")
+    a("# that row means filler cells would be the only content, which is")
+    a("# pure waste on a cut edge.")
+    a("foreach _row {IO_NORTH IO_SOUTH IO_WEST IO_EAST} {")
+    a("    set _edge_lc [string tolower [string range $_row 3 end]]")
+    a("    if { [lsearch -exact $_bare_edges $_edge_lc] >= 0 } {")
+    a('        puts "\\[INFO\\] Skipping place_io_fill on $_row (bare cut edge)"')
+    a("        continue")
+    a("    }")
+    a("    place_io_fill -row $_row {*}$::env(PAD_FILLERS)")
+    a("}")
     a("")
     a('puts "\\[INFO\\] Connecting ring signals…"')
     a("connect_by_abutment")
