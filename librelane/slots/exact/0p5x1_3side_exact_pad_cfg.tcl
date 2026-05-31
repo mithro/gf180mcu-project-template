@@ -72,7 +72,6 @@ lx_place $block PAD_SOUTH IO_SOUTH 2 [lindex $cp_S 2]  ;# bidir[0].pad @ 1x1 ord
 lx_place $block PAD_SOUTH IO_SOUTH 3 [lindex $cp_S 3]  ;# bidir[1].pad @ 1x1 ordinal 3
 lx_place $block PAD_SOUTH IO_SOUTH 4 [lindex $cp_S 4]  ;# bidir[2].pad @ 1x1 ordinal 4
 lx_place $block PAD_SOUTH IO_SOUTH 5 [lindex $cp_S 5]  ;# bidir[3].pad @ 1x1 ordinal 5
-lx_place $block PAD_SOUTH IO_SOUTH 6 1464.5000  ;# analog[0].pad (relocated analog, NOT 1x1-preserved)
 
 # PAD_EAST: bare cut edge -- no pads
 
@@ -85,7 +84,6 @@ lx_place $block PAD_NORTH IO_NORTH 2 [lindex $cp_N 2]  ;# bidir[6].pad @ 1x1 ord
 lx_place $block PAD_NORTH IO_NORTH 3 [lindex $cp_N 3]  ;# bidir[7].pad @ 1x1 ordinal 3
 lx_place $block PAD_NORTH IO_NORTH 4 [lindex $cp_N 4]  ;# bidir[8].pad @ 1x1 ordinal 4
 lx_place $block PAD_NORTH IO_NORTH 5 [lindex $cp_N 5]  ;# bidir[9].pad @ 1x1 ordinal 5
-lx_place $block PAD_NORTH IO_NORTH 6 1464.5000  ;# analog[1].pad (relocated analog, NOT 1x1-preserved)
 
 # ---- IO_WEST (PAD_WEST) ----
 # PAD_WEST list order == placement order below (idx -> location).

@@ -9,3 +9,8 @@ img/
 *.lyrdb
 gh-pages/
 tmp/
+
+# Exact-pad overlays are rendered from the built GDS by CI
+# (scripts/plot_exact_pad_overlay.py, uploaded as the exact_pad_overlays
+# artifact and pulled in by slot-docs) -- generated, not committed.
+docs/overlays/

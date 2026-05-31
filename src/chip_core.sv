@@ -32,7 +32,9 @@ module chip_core #(
     output wire [NUM_BIDIR_PADS-1:0] bidir_pd   // Pull-down
 
     `ifndef MAX_IO_CONFIG
+    `ifndef NO_ANALOG_PADS
     ,inout  wire [NUM_ANALOG_PADS-1:0] analog  // Analog
+    `endif
     `endif
 );
 

@@ -3,37 +3,43 @@
 # requires-python = ">=3.11"
 # dependencies = ["klayout"]
 # ///
-"""True-silicon proof of exact pad-coordinate preservation.
+"""Strict true-silicon proof of exact pad-coordinate preservation.
 
-Extracts the IO-pad instance origins from a *built* slot_1x1 GDS and a
-*built* exact 3-side GDS (both produced by the LibreLane Chip flow) and
-asserts that every retained 3-side pad origin coincides -- to the 0.001um
-GDS grid -- with a slot_1x1 pad origin.  Only the 2 deliberately relocated
-analog pads are allowed to differ.
+Extracts EVERY IO-pad instance origin from a *built* exact-config GDS and the
+*built* slot_1x1 GDS and asserts that **every** pad in the exact config sits on
+a slot_1x1 pad origin -- with no extras and no duplicates.
 
-This complements scripts/verify_exact_pad_coords.py (closed-form proof):
-this one inspects the *actual fabricated layout*, not a model.
+The check is deliberately pad-type-agnostic: it does not know or care whether a
+pad is a signal, power, clock or analog pad.  Any pad whose origin is not a
+slot_1x1 pad origin (an *unaligned* pad), and any duplicate pad at an origin
+(an *extra* pad), fails the check.  "Exact" means exact: a pad either lands on a
+real slot_1x1 coordinate or it does not belong here.
+
+(Corner and filler cells are structural padring fill, not pads, and their
+positions legitimately differ on a smaller die, so they are excluded.)
 
 Usage:
-    uv run scripts/verify_exact_pad_gds.py \
-        --ref slot_1x1.gds --new slot_0p5x1_3side_exact.gds \
-        --expect-exact 32 --max-relocated 2
+    uv run scripts/verify_exact_pad_gds.py --ref slot_1x1.gds --new exact.gds
 """
 
 import argparse
+import math
 import sys
+from collections import Counter
 
 import klayout.db as kdb
 
 IO_MARKERS = ("_io__",)  # gf180mcu_fd_io__ / gf180mcu_ws_io__
 
 
-def pad_origins(gds: str) -> set[tuple[float, float]]:
+def pad_origins(gds: str) -> list[tuple[float, float]]:
+    """Origins (um, rounded to the 0.001um GDS grid) of every IO *pad*
+    instance -- excluding only the structural corner/filler cells."""
     layout = kdb.Layout()
     layout.read(gds)
     top = list(layout.top_cells())[0]
     dbu = layout.dbu
-    out = set()
+    out = []
     for inst in top.each_inst():
         cname = layout.cell(inst.cell_index).name
         if not any(m in cname for m in IO_MARKERS):
@@ -41,42 +47,49 @@ def pad_origins(gds: str) -> set[tuple[float, float]]:
         if "__fill" in cname or "__cor" in cname:
             continue
         t = inst.trans
-        out.add((round(t.disp.x * dbu, 3), round(t.disp.y * dbu, 3)))
+        out.append((round(t.disp.x * dbu, 3), round(t.disp.y * dbu, 3)))
     return out
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--ref", required=True, help="built slot_1x1 GDS")
-    ap.add_argument("--new", required=True, help="built exact 3-side GDS")
-    ap.add_argument("--expect-exact", type=int, required=True,
-                    help="number of coordinate-preserved pads expected")
-    ap.add_argument("--max-relocated", type=int, default=2,
-                    help="max non-preserved pads (relocated analog)")
+    ap.add_argument("--new", required=True, help="built exact-config GDS")
     args = ap.parse_args()
 
-    ref = pad_origins(args.ref)
-    new = pad_origins(args.new)
-    shared = sorted(new & ref)
-    extra = sorted(new - ref)
+    ref_list = pad_origins(args.ref)
+    new_list = pad_origins(args.new)
+    ref = set(ref_list)
+    counts = Counter(new_list)
 
-    print(f"slot_1x1 IO-pad origins:  {len(ref)}")
-    print(f"3-side    IO-pad origins:  {len(new)}")
-    print(f"\nEXACT coincident origins ({len(shared)}):")
-    for p in shared:
-        print(f"  {p}")
-    print(f"\nNon-preserved origins ({len(extra)}, "
-          f"expect <= {args.max_relocated} relocated analog):")
-    for p in extra:
-        print(f"  {p}")
+    aligned = sorted(o for o in counts if o in ref)
+    unaligned = sorted(o for o in counts if o not in ref)
+    duplicated = sorted(o for o, c in counts.items() if c > 1)
 
-    ok = (len(shared) >= args.expect_exact
-          and len(extra) <= args.max_relocated)
+    print(f"slot_1x1 pad origins:        {len(ref)}")
+    print(f"exact-config pad instances:  {len(new_list)} "
+          f"({len(counts)} distinct)")
+    print(f"\nAligned to a slot_1x1 pad ({len(aligned)}):")
+    for p in aligned:
+        print(f"  {p}")
+    if duplicated:
+        print(f"\nDUPLICATE (extra) pads ({len(duplicated)}):")
+        for p in duplicated:
+            print(f"  {p} x{counts[p]}")
+    print(f"\nUNALIGNED pads ({len(unaligned)}):")
+    for p in unaligned:
+        nearest = min(ref, key=lambda r: math.dist(p, r)) if ref else None
+        d = math.dist(p, nearest) if nearest else -1
+        print(f"  {p}  (nearest slot_1x1 pad {nearest}, {d:.3f} um away)")
+
+    ok = not unaligned and not duplicated
     print(
-        f"\n{'PASS' if ok else 'FAIL'}: {len(shared)} pads at EXACT "
-        f"slot_1x1 coordinates in the built GDS "
-        f"(expected >= {args.expect_exact}); "
-        f"{len(extra)} relocated (<= {args.max_relocated})"
+        f"\n{'PASS' if ok else 'FAIL'}: {len(aligned)} pads aligned to "
+        f"slot_1x1, {len(unaligned)} unaligned, {len(duplicated)} "
+        f"duplicated.  "
+        + ("Every pad matches an exact slot_1x1 coordinate."
+           if ok else
+           "Off-grid or extra pads present -- not an exact slot.")
     )
     return 0 if ok else 1
 

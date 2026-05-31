@@ -5,7 +5,11 @@
 
 // Exact-pad half slot_1x1 (E edge = bare cut).
 // Pad counts == the slot_1x1 pads that survive on the kept side.
-// (analog pads are relocated, see slot config header).
+// slot_1x1's analog pads sit in the cut-away corner and cannot be
+// coordinate-preserved, so this slot has no analog pads; NO_ANALOG_PADS
+// drops the (core-unused) analog port so its width never goes -1:0.
+
+`define NO_ANALOG_PADS
 
 `ifdef NUM_DVDD_PADS_OVERRIDE
   `define NUM_DVDD_PADS `NUM_DVDD_PADS_OVERRIDE
@@ -20,7 +24,7 @@
 
 `define NUM_INPUT_PADS 12
 `define NUM_BIDIR_PADS 10
-`define NUM_ANALOG_PADS 2
+`define NUM_ANALOG_PADS 0
 
 `endif
 
@@ -28,7 +32,11 @@
 
 // Exact-pad half slot_1x1 (N edge = bare cut).
 // Pad counts == the slot_1x1 pads that survive on the kept side.
-// (analog pads are relocated, see slot config header).
+// slot_1x1's analog pads sit in the cut-away corner and cannot be
+// coordinate-preserved, so this slot has no analog pads; NO_ANALOG_PADS
+// drops the (core-unused) analog port so its width never goes -1:0.
+
+`define NO_ANALOG_PADS
 
 `ifdef NUM_DVDD_PADS_OVERRIDE
   `define NUM_DVDD_PADS `NUM_DVDD_PADS_OVERRIDE
@@ -43,7 +51,7 @@
 
 `define NUM_INPUT_PADS 6
 `define NUM_BIDIR_PADS 20
-`define NUM_ANALOG_PADS 2
+`define NUM_ANALOG_PADS 0
 
 `endif
 
@@ -51,7 +59,11 @@
 
 // Exact-pad quarter slot_1x1 (N+E edges = bare cuts).
 // Pad counts == the slot_1x1 pads that survive on the kept side.
-// (analog pads are relocated, see slot config header).
+// slot_1x1's analog pads sit in the cut-away corner and cannot be
+// coordinate-preserved, so this slot has no analog pads; NO_ANALOG_PADS
+// drops the (core-unused) analog port so its width never goes -1:0.
+
+`define NO_ANALOG_PADS
 
 `ifdef NUM_DVDD_PADS_OVERRIDE
   `define NUM_DVDD_PADS `NUM_DVDD_PADS_OVERRIDE
@@ -66,6 +78,6 @@
 
 `define NUM_INPUT_PADS 6
 `define NUM_BIDIR_PADS 4
-`define NUM_ANALOG_PADS 2
+`define NUM_ANALOG_PADS 0
 
 `endif
