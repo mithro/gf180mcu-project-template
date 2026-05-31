@@ -49,6 +49,21 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
 
+      - name: Download exact-pad overlays from CI artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # The CI 'overlay' job renders the exact-pad overlays straight from
+          # the built GDS (plot_exact_pad_overlay.py) and uploads them as the
+          # exact_pad_overlays artifact. Publish those true-silicon overlays
+          # rather than a committed model. Non-fatal: if none are found,
+          # generate_slot_docs.py simply omits the overlay section.
+          uv run scripts/download_overlays.py \
+            --repo "${{ github.repository }}" \
+            --branch "${{ github.ref_name }}" \
+            --out docs/overlays \
+            --max-runs 30
+
       - name: Generate slot documentation
         run: |
           uv run scripts/generate_slot_docs.py -o _site

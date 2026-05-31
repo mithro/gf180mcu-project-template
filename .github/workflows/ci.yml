@@ -151,6 +151,16 @@ jobs:
             --ref tmp/gds/1x1/chip_top.gds \
             --new tmp/gds/0p5x0p5_2side_exact/chip_top.gds \
             --out docs/overlays/0p5x0p5_2side_exact_gds_overlay.png
+      - name: Render exact-pad overlays from the built GDS
+        run: |
+          # Every pad drawn from the real GDS (aligned = green, unaligned =
+          # red); published to the docs page instead of a closed-form model.
+          for cfg in 0p5x1_3side_exact 1x0p5_3side_exact 0p5x0p5_2side_exact; do
+            uv run scripts/plot_exact_pad_overlay.py \
+              --ref tmp/gds/1x1/chip_top.gds \
+              --new tmp/gds/$cfg/chip_top.gds \
+              --out docs/overlays/${cfg}_overlay.png --title "$cfg"
+          done
       - name: Numeric coordinate proof (closed-form)
         run: |
           uv run scripts/verify_exact_pad_coords.py | tee -a $GITHUB_STEP_SUMMARY
