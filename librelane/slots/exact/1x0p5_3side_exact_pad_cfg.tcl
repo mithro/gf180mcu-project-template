@@ -119,7 +119,10 @@ set _bare_edges [list "north"]
 set _xmid [expr {([lindex $::env(DIE_AREA) 0] + [lindex $::env(DIE_AREA) 2]) / 2.0}]
 set _ymid [expr {([lindex $::env(DIE_AREA) 1] + [lindex $::env(DIE_AREA) 3]) / 2.0}]
 set _units [$block getDefUnits]
-set _bare_corner_insts [list]
+# Identify bare-edge corner cells AND remember their bbox + side BEFORE
+# destroying them -- the bbox is the freed silicon strip we will later
+# fill with IO row fillers so the row visually extends to the die edge.
+set _bare_corner_data [list]
 foreach _inst [$block getInsts] {
     if { [[$_inst getMaster] getName] ne $::env(PAD_CORNER) } { continue }
     set _bb [$_inst getBBox]
@@ -137,14 +140,64 @@ foreach _inst [$block getInsts] {
         }
         if { $_drop } { break }
     }
-    if { $_drop } { lappend _bare_corner_insts $_inst }
+    if { $_drop } {
+        lappend _bare_corner_data [list [$_bb xMin] [$_bb yMin] \
+            [$_bb xMax] [$_bb yMax] $_is_north $_inst]
+    }
 }
 set _destroyed 0
-foreach _inst $_bare_corner_insts {
-    odb::dbInst_destroy $_inst
+foreach _data $_bare_corner_data {
+    odb::dbInst_destroy [lindex $_data 5]
     incr _destroyed
 }
 puts "\[INFO\] Bare-edge corner cleanup (bare: $_bare_edges): destroyed $_destroyed corner cell(s)."
+
+# Extend the adjacent IO row over the freed corner X strip by manually
+# placing IO filler cells at the row's Y origin / orientation. This makes
+# the N/S filler band run all the way to the die edge on a bare side
+# rather than stopping ~355um short where the corner used to sit. The new
+# fillers abut the row's last existing cell (same Y + orient + adjacent X)
+# so they extend the power-abutment chain naturally for connect_by_abutment.
+set _db [ord::get_db]
+# Filler masters sorted by width (DB units) descending for greedy packing.
+set _filler_choices [list]
+foreach _fname $::env(PAD_FILLERS) {
+    set _fm [$_db findMaster $_fname]
+    if {$_fm == "NULL"} { continue }
+    lappend _filler_choices [list [$_fm getWidth] $_fname $_fm]
+}
+set _filler_choices [lsort -decreasing -integer -index 0 $_filler_choices]
+set _bare_fill_count 0
+foreach _data $_bare_corner_data {
+    lassign $_data _cxlo _cylo _cxhi _cyhi _is_north _inst
+    set _row_name [expr {$_is_north ? "IO_NORTH" : "IO_SOUTH"}]
+    set _row [$block findRow $_row_name]
+    if {$_row == "NULL"} { continue }
+    set _row_orig [$_row getOrigin]
+    set _row_y [lindex $_row_orig 1]
+    set _row_orient [$_row getOrient]
+    set _x $_cxlo
+    while {$_x < $_cxhi} {
+        set _rem [expr {$_cxhi - $_x}]
+        set _placed 0
+        foreach _fc $_filler_choices {
+            lassign $_fc _fwidth _fname _fmaster
+            if {$_fwidth <= $_rem} {
+                incr _bare_fill_count
+                set _iname "_bare_fill_$_bare_fill_count"
+                set _new [odb::dbInst_create $block $_fmaster $_iname]
+                $_new setOrient $_row_orient
+                $_new setLocation $_x $_row_y
+                $_new setPlacementStatus FIRM
+                set _x [expr {$_x + $_fwidth}]
+                set _placed 1
+                break
+            }
+        }
+        if {!$_placed} { break }
+    }
+}
+puts "\[INFO\] Bare-edge corner fill: placed $_bare_fill_count extension filler(s)."
 
 puts "\[INFO\] Placing filler cells…"
 # Skip `place_io_fill` on bare-edge rows: no pads + no corners on
