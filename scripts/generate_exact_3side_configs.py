@@ -112,7 +112,12 @@ CONFIGS = [
         name="0p5x1_3side_exact",
         define="SLOT_0P5X1_3SIDE_EXACT",
         die=[0, 0, 1966, 5122],
-        core=[442, 442, 1524, 4680],
+        # East margin shrunk from 442 -> 166: NE+SE corners are destroyed
+        # in pad_cfg.tcl, so the 355um corner clearance is no longer needed
+        # on the bare east edge. 166um still leaves room for the power ring
+        # (57um) + buffer (~8um) + the IO_EAST row strip (75+26um) which
+        # make_io_sites reserves at x=[1865,1940].
+        core=[442, 442, 1800, 4680],
         cuts="E",
     ),
     # Half HEIGHT, NORTH is the bare cut edge.  (The approximate
@@ -123,7 +128,10 @@ CONFIGS = [
         name="1x0p5_3side_exact",
         define="SLOT_1X0P5_3SIDE_EXACT",
         die=[0, 0, 3932, 2561],
-        core=[442, 442, 3490, 2119],
+        # North margin shrunk from 442 -> 161: same rationale as 0p5x1_3side
+        # for the east case (NW+NE corners destroyed; clearance to IO_NORTH
+        # strip at y=[2460,2535]).
+        core=[442, 442, 3490, 2400],
         cuts="N",
     ),
     # QUARTER: half WIDTH and half HEIGHT -> a kept SW corner.  TWO bare cut
@@ -139,7 +147,11 @@ CONFIGS = [
         name="0p5x0p5_2side_exact",
         define="SLOT_0P5X0P5_2SIDE_EXACT",
         die=[0, 0, 1966, 2561],
-        core=[442, 442, 1524, 2119],
+        # Both bare-edge margins shrunk: east 442 -> 166 (NE+SE corners
+        # destroyed) and north 442 -> 161 (NW+NE corners destroyed). Only
+        # the SW corner survives, so only the SW edges retain the 442um
+        # corner clearance.
+        core=[442, 442, 1800, 2400],
         cuts="NE",
     ),
 ]

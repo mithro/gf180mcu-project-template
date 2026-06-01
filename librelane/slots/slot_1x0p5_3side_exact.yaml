@@ -8,7 +8,7 @@
 # unused analog_PAD port is dropped via NO_ANALOG_PADS).
 FP_SIZING: absolute
 DIE_AREA: [0, 0, 3932, 2561]
-CORE_AREA: [442, 442, 3490, 2119]
+CORE_AREA: [442, 442, 3490, 2400]
 
 VERILOG_DEFINES: ["SLOT_1X0P5_3SIDE_EXACT"]
 
