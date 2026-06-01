@@ -168,11 +168,16 @@ foreach _fname $::env(PAD_FILLERS) {
 }
 set _filler_choices [lsort -decreasing -integer -index 0 $_filler_choices]
 set _bare_fill_count 0
+# Pre-iterate rows once; dbBlock has no findRow, just getRows.
+set _rows_by_name [dict create]
+foreach _r [$block getRows] {
+    dict set _rows_by_name [$_r getName] $_r
+}
 foreach _data $_bare_corner_data {
     lassign $_data _cxlo _cylo _cxhi _cyhi _is_north _inst
     set _row_name [expr {$_is_north ? "IO_NORTH" : "IO_SOUTH"}]
-    set _row [$block findRow $_row_name]
-    if {$_row == "NULL"} { continue }
+    if {![dict exists $_rows_by_name $_row_name]} { continue }
+    set _row [dict get $_rows_by_name $_row_name]
     # getBBox is the well-supported API across odb bindings; the row's
     # yMin is the Y origin of its sites (cells are placed at this Y).
     set _row_bb [$_row getBBox]
