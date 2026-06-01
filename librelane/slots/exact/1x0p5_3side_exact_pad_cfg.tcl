@@ -173,9 +173,12 @@ foreach _data $_bare_corner_data {
     set _row_name [expr {$_is_north ? "IO_NORTH" : "IO_SOUTH"}]
     set _row [$block findRow $_row_name]
     if {$_row == "NULL"} { continue }
-    set _row_orig [$_row getOrigin]
-    set _row_y [lindex $_row_orig 1]
+    # getBBox is the well-supported API across odb bindings; the row's
+    # yMin is the Y origin of its sites (cells are placed at this Y).
+    set _row_bb [$_row getBBox]
+    set _row_y [$_row_bb yMin]
     set _row_orient [$_row getOrient]
+    puts "\[INFO\]   ext row=$_row_name y=$_row_y orient=$_row_orient x=[$_row_bb xMin]-[$_row_bb xMax] corner_x=${_cxlo}-${_cxhi}"
     set _x $_cxlo
     while {$_x < $_cxhi} {
         set _rem [expr {$_cxhi - $_x}]
