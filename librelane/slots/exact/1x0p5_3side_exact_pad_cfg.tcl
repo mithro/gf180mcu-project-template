@@ -152,22 +152,18 @@ foreach _data $_bare_corner_data {
 }
 puts "\[INFO\] Bare-edge corner cleanup (bare: $_bare_edges): destroyed $_destroyed corner cell(s)."
 
-# Extend the adjacent IO row over the freed corner X strip by manually
-# placing IO filler cells at the row's Y origin / orientation. This makes
-# the N/S filler band run all the way to the die edge on a bare side
-# rather than stopping ~355um short where the corner used to sit. The new
-# fillers abut the row's last existing cell (same Y + orient + adjacent X)
-# so they extend the power-abutment chain naturally for connect_by_abutment.
-set _db [ord::get_db]
-# Filler masters sorted by width (DB units) descending for greedy packing.
-set _filler_choices [list]
-foreach _fname $::env(PAD_FILLERS) {
-    set _fm [$_db findMaster $_fname]
-    if {$_fm == "NULL"} { continue }
-    lappend _filler_choices [list [$_fm getWidth] $_fname $_fm]
-}
-set _filler_choices [lsort -decreasing -integer -index 0 $_filler_choices]
-set _bare_fill_count 0
+# Extend the adjacent IO row over the freed corner X strip by creating a
+# SUPPLEMENTAL dbRow at the corner location with the same site / orient /
+# direction as the original row, then letting `place_io_fill` populate it.
+# This is preferable to dbInst_create'ing fillers manually because:
+#  - `place_io_fill` produces site-aligned cells the row-walking power
+#    chain understands;
+#  - `connect_by_abutment` (called below) walks dbRows by name and would
+#    miss standalone cells outside any row, leading to Magic Illegal
+#    Overlap errors at DRC time (~357-1430 per build observed).
+# We name the new rows IO_<side>_EXT_<x> so they look like ordinary IO rows
+# to place_io_fill but don't collide with the original row name.
+set _ext_row_names [list]
 # Pre-iterate rows once; dbBlock has no findRow, just getRows.
 set _rows_by_name [dict create]
 foreach _r [$block getRows] {
@@ -175,37 +171,39 @@ foreach _r [$block getRows] {
 }
 foreach _data $_bare_corner_data {
     lassign $_data _cxlo _cylo _cxhi _cyhi _is_north _inst
-    set _row_name [expr {$_is_north ? "IO_NORTH" : "IO_SOUTH"}]
+    set _is_east [expr {(($_cxlo + $_cxhi) / 2.0 / $_units) > $_xmid}]
+    # Decide which adjacent row of this destroyed corner is KEPT (not bare).
+    # NS side is the corner's north/south side; EW side is its east/west side.
+    set _ns_side [expr {$_is_north ? "north" : "south"}]
+    set _ew_side [expr {$_is_east  ? "east"  : "west"}]
+    set _ns_bare [expr {[lsearch -exact $_bare_edges $_ns_side] >= 0}]
+    set _row_name ""
+    if {!$_ns_bare} {
+        set _row_name "IO_[string toupper $_ns_side]"
+    }
+    # We only extend N/S rows here; extending E/W requires vertical-orient
+    # fillers which complicate the math. For now skip those (bare N or S)
+    # rather than fall back to broken approaches.
+    if {$_row_name eq ""} { continue }
     if {![dict exists $_rows_by_name $_row_name]} { continue }
     set _row [dict get $_rows_by_name $_row_name]
-    # getBBox is the well-supported API across odb bindings; the row's
-    # yMin is the Y origin of its sites (cells are placed at this Y).
+    set _site [$_row getSite]
     set _row_bb [$_row getBBox]
     set _row_y [$_row_bb yMin]
     set _row_orient [$_row getOrient]
-    puts "\[INFO\]   ext row=$_row_name y=$_row_y orient=$_row_orient x=[$_row_bb xMin]-[$_row_bb xMax] corner_x=${_cxlo}-${_cxhi}"
-    set _x $_cxlo
-    while {$_x < $_cxhi} {
-        set _rem [expr {$_cxhi - $_x}]
-        set _placed 0
-        foreach _fc $_filler_choices {
-            lassign $_fc _fwidth _fname _fmaster
-            if {$_fwidth <= $_rem} {
-                incr _bare_fill_count
-                set _iname "_bare_fill_$_bare_fill_count"
-                set _new [odb::dbInst_create $block $_fmaster $_iname]
-                $_new setOrient $_row_orient
-                $_new setLocation $_x $_row_y
-                $_new setPlacementStatus FIRM
-                set _x [expr {$_x + $_fwidth}]
-                set _placed 1
-                break
-            }
-        }
-        if {!$_placed} { break }
-    }
+    set _row_dir [$_row getDirection]
+    set _site_w [$_site getWidth]
+    set _ext_width [expr {$_cxhi - $_cxlo}]
+    set _num_sites [expr {$_ext_width / $_site_w}]
+    if {$_num_sites <= 0} { continue }
+    # Unique row name per corner to avoid collision with original IO rows.
+    set _ext_name "${_row_name}_EXT_${_cxlo}"
+    puts "\[INFO\]   ext-row $_ext_name x=${_cxlo}-${_cxhi} y=$_row_y site=[$_site getName] sites=$_num_sites dir=$_row_dir orient=$_row_orient"
+    odb::dbRow_create $block $_ext_name $_site $_cxlo $_row_y \
+        $_row_orient $_row_dir $_num_sites $_site_w
+    lappend _ext_row_names $_ext_name
 }
-puts "\[INFO\] Bare-edge corner fill: placed $_bare_fill_count extension filler(s)."
+puts "\[INFO\] Bare-edge corner fill: created [llength $_ext_row_names] extension row(s) to fill via place_io_fill."
 
 puts "\[INFO\] Placing filler cells…"
 # Skip `place_io_fill` on bare-edge rows: no pads + no corners on
@@ -218,6 +216,14 @@ foreach _row {IO_NORTH IO_SOUTH IO_WEST IO_EAST} {
         continue
     }
     place_io_fill -row $_row {*}$::env(PAD_FILLERS)
+}
+# Fill the corner-extension rows we created above. Doing this AFTER the
+# main rows are filled means the existing IO_NORTH/IO_SOUTH cells are now
+# in place at the corner-adjacent X, so place_io_fill's adjacency-aware
+# packing knows where to start (just east of the row's last filler).
+foreach _ext $_ext_row_names {
+    puts "\[INFO\] Filling extension row $_ext"
+    place_io_fill -row $_ext {*}$::env(PAD_FILLERS)
 }
 
 puts "\[INFO\] Connecting ring signals…"
