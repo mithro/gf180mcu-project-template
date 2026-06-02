@@ -181,6 +181,13 @@ foreach _data $_bare_corner_data {
     if {!$_ns_bare} {
         set _row_name "IO_[string toupper $_ns_side]"
     }
+    # DIAGNOSTIC: skip IO_NORTH extensions. CI shows IO_SOUTH ext rows
+    # work cleanly (0p5x0p5_2side_exact SE corner passed DRC) but adding
+    # IO_NORTH ext rows causes 357 Magic Illegal Overlap errors. Isolating.
+    if {$_row_name eq "IO_NORTH"} {
+        puts "\[INFO\] DIAGNOSTIC: skipping IO_NORTH extension at corner x=${_cxlo}-${_cxhi} -- being investigated"
+        continue
+    }
     # We only extend N/S rows here; extending E/W requires vertical-orient
     # fillers which complicate the math. For now skip those (bare N or S)
     # rather than fall back to broken approaches.
