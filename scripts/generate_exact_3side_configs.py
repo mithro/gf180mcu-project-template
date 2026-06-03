@@ -265,7 +265,10 @@ def emit_yaml(cfg: ExactConfig, placements: dict) -> str:
     a(f'VERILOG_DEFINES: ["{cfg.define}"]')
     a("")
     a(f"# Partial padring ({n_sides}-sided): use the partial PDN script.")
-    a("PDN_CFG: dir::pdn_partial.tcl")
+    a("# The exact-pad variant wraps pdn_partial.tcl with a pre-PDN destroy")
+    a("# of wafer_space_logo (whose Metal5 OBS at the NE corner otherwise")
+    a("# collides with the bare-edge IO row extension fillers).")
+    a("PDN_CFG: dir::pdn_partial_exact.tcl")
     a("")
     a("# Custom pad config: explicit per-pad placement at exact slot_1x1")
     a("# coordinates (bypasses pad_cfg.tcl's even auto-distribution).")
@@ -401,34 +404,16 @@ def emit_pad_cfg(cfg: ExactConfig, placements: dict) -> str:
     a('puts "\\[INFO\\] Placing corner cells…"')
     a("place_corners $::env(PAD_CORNER)")
     a("")
-    # Destroy the wafer.space logo INSTANCE at the original die's NE corner.
-    # The logo macro (143.25um x 143.25um Metal5 OBS, placed at
-    # (die_w-169.25, die_h-169.25) by config.yaml/MACROS) sits squarely inside
-    # the NE corner cell's footprint. When the bare-edge generator destroys
-    # the NE corner and place_io_fill packs filler cells across the freed
-    # 355um strip, the fillers' Metal5 collides with the logo's Metal5 OBS,
-    # producing ~357 Magic Illegal Overlap errors (the empirical "IO_NORTH
-    # extension known-broken" failure was actually the logo, not MX orient).
-    #
-    # The logo's Verilog (`module gf180mcu_ws_ip__logo;`) is empty (no ports,
-    # no nets) and LVS_FLATTEN_CELLS already lists gf180mcu_ws_ip__logo, so
-    # flattening the netlist reference is a no-op for LVS. Destroying just
-    # the layout instance is LVS-safe: extracted spice has no logo, netlist
-    # (after flatten) has no logo, both sides match.
-    a("# Destroy the wafer.space logo instance: its Metal5 OBS at the NE")
-    a("# corner collides with bare-edge IO row extension fillers. Safe to")
-    a("# drop because the logo Verilog is empty + LVS_FLATTEN_CELLS handles")
-    a("# the netlist reference.")
-    a('set _logo_inst [$block findInst wafer_space_logo]')
-    a('if {$_logo_inst ne "NULL"} {')
-    a("    odb::dbInst_destroy $_logo_inst")
-    a('    puts "\\[INFO\\] Destroyed wafer_space_logo instance '
-      '(avoids NE corner Metal5 collision with extension fillers)."')
-    a("} else {")
-    a('    puts "\\[INFO\\] wafer_space_logo instance not found (already '
-      'absent or design override) — nothing to do."')
-    a("}")
-    a("")
+    # NOTE: the `wafer_space_logo` cleanup that prevents the 357 Magic
+    # Illegal Overlap errors lives in librelane/pdn_partial_exact.tcl, not
+    # here. LibreLane runs PadRing (this step) BEFORE ManualMacroPlacement;
+    # destroying the logo from inside pad_cfg.tcl deletes the instance
+    # before MMP can place it, and the manual_macro_placement placer
+    # exits(1) with "Declared macros not instantiated in design:
+    # wafer_space_logo". GeneratePDN -- which sources pdn_partial_exact.tcl
+    # for the exact-pad slots -- runs AFTER MMP, so the destroy lands in
+    # the right phase. Exact configs therefore set
+    # PDN_CFG: dir::pdn_partial_exact.tcl (see emit_yaml).
     # Drop corner cells + skip filler-row creation on the bare cut edge(s).
     # OpenROAD's `place_corners` always places one corner per die corner; for
     # cut edges there is no IO row to abut to on the bare side, so the

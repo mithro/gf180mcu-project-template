@@ -113,18 +113,6 @@ lx_place $block PAD_WEST IO_WEST 7 [lindex $cp_W 7]  ;# inputs[5].pad @ 1x1 ordi
 puts "\[INFO\] Placing corner cells…"
 place_corners $::env(PAD_CORNER)
 
-# Destroy the wafer.space logo instance: its Metal5 OBS at the NE
-# corner collides with bare-edge IO row extension fillers. Safe to
-# drop because the logo Verilog is empty + LVS_FLATTEN_CELLS handles
-# the netlist reference.
-set _logo_inst [$block findInst wafer_space_logo]
-if {$_logo_inst ne "NULL"} {
-    odb::dbInst_destroy $_logo_inst
-    puts "\[INFO\] Destroyed wafer_space_logo instance (avoids NE corner Metal5 collision with extension fillers)."
-} else {
-    puts "\[INFO\] wafer_space_logo instance not found (already absent or design override) — nothing to do."
-}
-
 # Drop the bare-edge corner cell(s): no IO row abuts them, they would
 # just be isolated structures on the bare cut edge.
 set _bare_edges [list "north"]

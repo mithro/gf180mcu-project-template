@@ -13,7 +13,10 @@ CORE_AREA: [442, 442, 3490, 2400]
 VERILOG_DEFINES: ["SLOT_1X0P5_3SIDE_EXACT"]
 
 # Partial padring (3-sided): use the partial PDN script.
-PDN_CFG: dir::pdn_partial.tcl
+# The exact-pad variant wraps pdn_partial.tcl with a pre-PDN destroy
+# of wafer_space_logo (whose Metal5 OBS at the NE corner otherwise
+# collides with the bare-edge IO row extension fillers).
+PDN_CFG: dir::pdn_partial_exact.tcl
 
 # Custom pad config: explicit per-pad placement at exact slot_1x1
 # coordinates (bypasses pad_cfg.tcl's even auto-distribution).
