@@ -112,6 +112,18 @@ lx_place $block PAD_WEST IO_WEST 19 [lindex $cp_W 19]  ;# dvdd_pads[3].pad @ 1x1
 puts "\[INFO\] Placing corner cells…"
 place_corners $::env(PAD_CORNER)
 
+# Destroy the wafer.space logo instance: its Metal5 OBS at the NE
+# corner collides with bare-edge IO row extension fillers. Safe to
+# drop because the logo Verilog is empty + LVS_FLATTEN_CELLS handles
+# the netlist reference.
+set _logo_inst [$block findInst wafer_space_logo]
+if {$_logo_inst ne "NULL"} {
+    odb::dbInst_destroy $_logo_inst
+    puts "\[INFO\] Destroyed wafer_space_logo instance (avoids NE corner Metal5 collision with extension fillers)."
+} else {
+    puts "\[INFO\] wafer_space_logo instance not found (already absent or design override) — nothing to do."
+}
+
 # Drop the bare-edge corner cell(s): no IO row abuts them, they would
 # just be isolated structures on the bare cut edge.
 set _bare_edges [list "east"]
@@ -176,40 +188,55 @@ foreach _data $_bare_corner_data {
     set _ns_side [expr {$_is_north ? "north" : "south"}]
     set _ew_side [expr {$_is_east  ? "east"  : "west"}]
     set _ns_bare [expr {[lsearch -exact $_bare_edges $_ns_side] >= 0}]
+    set _ew_bare [expr {[lsearch -exact $_bare_edges $_ew_side] >= 0}]
+    # Prefer horizontal (N/S) extension when the kept-adjacent N/S row
+    # exists (matches the original IO_SOUTH east-extending behaviour);
+    # fall back to vertical (E/W) extension for bare-N/S configs where
+    # only the perpendicular row is kept.
     set _row_name ""
+    set _is_horizontal 1
     if {!$_ns_bare} {
         set _row_name "IO_[string toupper $_ns_side]"
-    }
-    # KNOWN LIMITATION: only IO_SOUTH ext rows work cleanly with this
-    # approach. CI experiments confirmed IO_NORTH extension rows cause
-    # exactly 357 Magic Illegal Overlap errors per build (suspected: the
-    # MX-mirrored orient interacts badly with place_io_fill cell placement
-    # or with the connect_by_abutment chain direction when the row sits
-    # above the existing IO_NORTH chain end. IO_SOUTH (R0 orient) works.)
-    # When the kept N/S row is IO_NORTH, leave the corner area empty.
-    if {$_row_name eq "IO_NORTH"} {
-        puts "\[INFO\] Skipping IO_NORTH extension at corner x=${_cxlo}-${_cxhi} (known-broken, see generator comment)."
+        set _is_horizontal 1
+    } elseif {!$_ew_bare} {
+        set _row_name "IO_[string toupper $_ew_side]"
+        set _is_horizontal 0
+    } else {
+        # Both adjacents bare (e.g. NE corner of bare-NE quarter slot):
+        # no IO row exists to extend — leave the corner area empty.
+        puts "\[INFO\] Corner at x=${_cxlo}-${_cxhi} y=${_cylo}-${_cyhi}: both adjacent edges bare, no extension possible."
         continue
     }
-    # We only extend N/S rows here; extending E/W requires vertical-orient
-    # fillers which complicate the math. For now skip those (bare N or S)
-    # rather than fall back to broken approaches.
-    if {$_row_name eq ""} { continue }
     if {![dict exists $_rows_by_name $_row_name]} { continue }
     set _row [dict get $_rows_by_name $_row_name]
     set _site [$_row getSite]
     set _row_bb [$_row getBBox]
-    set _row_y [$_row_bb yMin]
     set _row_orient [$_row getOrient]
     set _row_dir [$_row getDirection]
     set _site_w [$_site getWidth]
-    set _ext_width [expr {$_cxhi - $_cxlo}]
-    set _num_sites [expr {$_ext_width / $_site_w}]
+    if {$_is_horizontal} {
+        # Horizontal row extension: place a new row along the corner's X
+        # strip at the kept row's Y origin. Cells stride along X using
+        # the site's width (== PAD_FAKE_SITE_WIDTH for gf180mcu).
+        set _ext_origin_x $_cxlo
+        set _ext_origin_y [$_row_bb yMin]
+        set _ext_axis_len [expr {$_cxhi - $_cxlo}]
+    } else {
+        # Vertical row extension: place a new row along the corner's Y
+        # strip at the kept row's X origin. dbRow_create's 'spacing'
+        # parameter is the per-site stride along the row direction;
+        # OpenROAD uses site getWidth() for that for both H and V rows
+        # (the row's direction field tells the placer which axis).
+        set _ext_origin_x [$_row_bb xMin]
+        set _ext_origin_y $_cylo
+        set _ext_axis_len [expr {$_cyhi - $_cylo}]
+    }
+    set _num_sites [expr {$_ext_axis_len / $_site_w}]
     if {$_num_sites <= 0} { continue }
     # Unique row name per corner to avoid collision with original IO rows.
-    set _ext_name "${_row_name}_EXT_${_cxlo}"
-    puts "\[INFO\]   ext-row $_ext_name x=${_cxlo}-${_cxhi} y=$_row_y site=[$_site getName] sites=$_num_sites dir=$_row_dir orient=$_row_orient"
-    odb::dbRow_create $block $_ext_name $_site $_cxlo $_row_y \
+    set _ext_name "${_row_name}_EXT_${_ext_origin_x}_${_ext_origin_y}"
+    puts "\[INFO\]   ext-row $_ext_name origin=(${_ext_origin_x},${_ext_origin_y}) site=[$_site getName] sites=$_num_sites dir=$_row_dir orient=$_row_orient"
+    odb::dbRow_create $block $_ext_name $_site $_ext_origin_x $_ext_origin_y \
         $_row_orient $_row_dir $_num_sites $_site_w
     lappend _ext_row_names $_ext_name
 }

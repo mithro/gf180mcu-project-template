@@ -401,6 +401,34 @@ def emit_pad_cfg(cfg: ExactConfig, placements: dict) -> str:
     a('puts "\\[INFO\\] Placing corner cells…"')
     a("place_corners $::env(PAD_CORNER)")
     a("")
+    # Destroy the wafer.space logo INSTANCE at the original die's NE corner.
+    # The logo macro (143.25um x 143.25um Metal5 OBS, placed at
+    # (die_w-169.25, die_h-169.25) by config.yaml/MACROS) sits squarely inside
+    # the NE corner cell's footprint. When the bare-edge generator destroys
+    # the NE corner and place_io_fill packs filler cells across the freed
+    # 355um strip, the fillers' Metal5 collides with the logo's Metal5 OBS,
+    # producing ~357 Magic Illegal Overlap errors (the empirical "IO_NORTH
+    # extension known-broken" failure was actually the logo, not MX orient).
+    #
+    # The logo's Verilog (`module gf180mcu_ws_ip__logo;`) is empty (no ports,
+    # no nets) and LVS_FLATTEN_CELLS already lists gf180mcu_ws_ip__logo, so
+    # flattening the netlist reference is a no-op for LVS. Destroying just
+    # the layout instance is LVS-safe: extracted spice has no logo, netlist
+    # (after flatten) has no logo, both sides match.
+    a("# Destroy the wafer.space logo instance: its Metal5 OBS at the NE")
+    a("# corner collides with bare-edge IO row extension fillers. Safe to")
+    a("# drop because the logo Verilog is empty + LVS_FLATTEN_CELLS handles")
+    a("# the netlist reference.")
+    a('set _logo_inst [$block findInst wafer_space_logo]')
+    a('if {$_logo_inst ne "NULL"} {')
+    a("    odb::dbInst_destroy $_logo_inst")
+    a('    puts "\\[INFO\\] Destroyed wafer_space_logo instance '
+      '(avoids NE corner Metal5 collision with extension fillers)."')
+    a("} else {")
+    a('    puts "\\[INFO\\] wafer_space_logo instance not found (already '
+      'absent or design override) — nothing to do."')
+    a("}")
+    a("")
     # Drop corner cells + skip filler-row creation on the bare cut edge(s).
     # OpenROAD's `place_corners` always places one corner per die corner; for
     # cut edges there is no IO row to abut to on the bare side, so the
@@ -482,42 +510,57 @@ def emit_pad_cfg(cfg: ExactConfig, placements: dict) -> str:
     a("    set _ns_side [expr {$_is_north ? \"north\" : \"south\"}]")
     a("    set _ew_side [expr {$_is_east  ? \"east\"  : \"west\"}]")
     a("    set _ns_bare [expr {[lsearch -exact $_bare_edges $_ns_side] >= 0}]")
+    a("    set _ew_bare [expr {[lsearch -exact $_bare_edges $_ew_side] >= 0}]")
+    a("    # Prefer horizontal (N/S) extension when the kept-adjacent N/S row")
+    a("    # exists (matches the original IO_SOUTH east-extending behaviour);")
+    a("    # fall back to vertical (E/W) extension for bare-N/S configs where")
+    a("    # only the perpendicular row is kept.")
     a("    set _row_name \"\"")
+    a("    set _is_horizontal 1")
     a("    if {!$_ns_bare} {")
     a("        set _row_name \"IO_[string toupper $_ns_side]\"")
-    a("    }")
-    a("    # KNOWN LIMITATION: only IO_SOUTH ext rows work cleanly with this")
-    a("    # approach. CI experiments confirmed IO_NORTH extension rows cause")
-    a("    # exactly 357 Magic Illegal Overlap errors per build (suspected: the")
-    a("    # MX-mirrored orient interacts badly with place_io_fill cell placement")
-    a("    # or with the connect_by_abutment chain direction when the row sits")
-    a("    # above the existing IO_NORTH chain end. IO_SOUTH (R0 orient) works.)")
-    a("    # When the kept N/S row is IO_NORTH, leave the corner area empty.")
-    a("    if {$_row_name eq \"IO_NORTH\"} {")
-    a('        puts "\\[INFO\\] Skipping IO_NORTH extension at corner '
-      'x=${_cxlo}-${_cxhi} (known-broken, see generator comment)."')
+    a("        set _is_horizontal 1")
+    a("    } elseif {!$_ew_bare} {")
+    a("        set _row_name \"IO_[string toupper $_ew_side]\"")
+    a("        set _is_horizontal 0")
+    a("    } else {")
+    a("        # Both adjacents bare (e.g. NE corner of bare-NE quarter slot):")
+    a("        # no IO row exists to extend — leave the corner area empty.")
+    a('        puts "\\[INFO\\] Corner at x=${_cxlo}-${_cxhi} y=${_cylo}-${_cyhi}: '
+      'both adjacent edges bare, no extension possible."')
     a("        continue")
     a("    }")
-    a("    # We only extend N/S rows here; extending E/W requires vertical-orient")
-    a("    # fillers which complicate the math. For now skip those (bare N or S)")
-    a("    # rather than fall back to broken approaches.")
-    a("    if {$_row_name eq \"\"} { continue }")
     a("    if {![dict exists $_rows_by_name $_row_name]} { continue }")
     a("    set _row [dict get $_rows_by_name $_row_name]")
     a("    set _site [$_row getSite]")
     a("    set _row_bb [$_row getBBox]")
-    a("    set _row_y [$_row_bb yMin]")
     a("    set _row_orient [$_row getOrient]")
     a("    set _row_dir [$_row getDirection]")
     a("    set _site_w [$_site getWidth]")
-    a("    set _ext_width [expr {$_cxhi - $_cxlo}]")
-    a("    set _num_sites [expr {$_ext_width / $_site_w}]")
+    a("    if {$_is_horizontal} {")
+    a("        # Horizontal row extension: place a new row along the corner's X")
+    a("        # strip at the kept row's Y origin. Cells stride along X using")
+    a("        # the site's width (== PAD_FAKE_SITE_WIDTH for gf180mcu).")
+    a("        set _ext_origin_x $_cxlo")
+    a("        set _ext_origin_y [$_row_bb yMin]")
+    a("        set _ext_axis_len [expr {$_cxhi - $_cxlo}]")
+    a("    } else {")
+    a("        # Vertical row extension: place a new row along the corner's Y")
+    a("        # strip at the kept row's X origin. dbRow_create's 'spacing'")
+    a("        # parameter is the per-site stride along the row direction;")
+    a("        # OpenROAD uses site getWidth() for that for both H and V rows")
+    a("        # (the row's direction field tells the placer which axis).")
+    a("        set _ext_origin_x [$_row_bb xMin]")
+    a("        set _ext_origin_y $_cylo")
+    a("        set _ext_axis_len [expr {$_cyhi - $_cylo}]")
+    a("    }")
+    a("    set _num_sites [expr {$_ext_axis_len / $_site_w}]")
     a("    if {$_num_sites <= 0} { continue }")
     a("    # Unique row name per corner to avoid collision with original IO rows.")
-    a("    set _ext_name \"${_row_name}_EXT_${_cxlo}\"")
-    a('    puts "\\[INFO\\]   ext-row $_ext_name x=${_cxlo}-${_cxhi} y=$_row_y '
+    a("    set _ext_name \"${_row_name}_EXT_${_ext_origin_x}_${_ext_origin_y}\"")
+    a('    puts "\\[INFO\\]   ext-row $_ext_name origin=(${_ext_origin_x},${_ext_origin_y}) '
       'site=[$_site getName] sites=$_num_sites dir=$_row_dir orient=$_row_orient"')
-    a("    odb::dbRow_create $block $_ext_name $_site $_cxlo $_row_y \\")
+    a("    odb::dbRow_create $block $_ext_name $_site $_ext_origin_x $_ext_origin_y \\")
     a("        $_row_orient $_row_dir $_num_sites $_site_w")
     a("    lappend _ext_row_names $_ext_name")
     a("}")
