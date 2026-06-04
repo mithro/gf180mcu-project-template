@@ -191,6 +191,9 @@
 
 // Exact-pad half slot_1x1 (EAST edge = bare cut, keep WEST half).
 // No analog pads (slot_1x1's analogs are on the cut-away NORTH corner).
+// Pad counts gained +2 N, +2 S vs. the pre-extension build: corners at
+// NE+SE are destroyed and the IO ring extends to die_edge - SEAL, so
+// the two slot_1x1 pads nearest each destroyed corner now fit.
 
 `define NO_ANALOG_PADS
 
@@ -206,7 +209,7 @@
 `endif
 
 `define NUM_INPUT_PADS 12
-`define NUM_BIDIR_PADS 10
+`define NUM_BIDIR_PADS 14
 `define NUM_ANALOG_PADS 0
 
 `endif
@@ -217,6 +220,37 @@
 // (The approximate slot_1x0p5_3side cuts SOUTH; exact preservation
 // requires cutting NORTH since slot_1x1's north pads sit at y~5096
 // which cannot exist in a 2561um-tall die.)
+// No analog pads (slot_1x1's analogs are on the cut-away NORTH corner).
+// Pad counts gained +2 W, +2 E vs. the pre-extension build (NW+NE
+// destroyed -> vertical IO row extends north to die_h - SEAL).
+
+`define NO_ANALOG_PADS
+
+`ifdef NUM_DVDD_PADS_OVERRIDE
+  `define NUM_DVDD_PADS `NUM_DVDD_PADS_OVERRIDE
+`else
+  `define NUM_DVDD_PADS 4
+`endif
+`ifdef NUM_DVSS_PADS_OVERRIDE
+  `define NUM_DVSS_PADS `NUM_DVSS_PADS_OVERRIDE
+`else
+  `define NUM_DVSS_PADS 5
+`endif
+
+`define NUM_INPUT_PADS 6
+`define NUM_BIDIR_PADS 20
+`define NUM_ANALOG_PADS 0
+
+`endif
+
+`ifdef SLOT_0P5X0P5_2SIDE_EXACT
+
+// Exact-pad QUARTER slot_1x1 (NORTH + EAST edges = bare cuts, keep the
+// SOUTH-WEST corner).  With NW+SE corners destroyed and IO rows
+// extended into those areas: SOUTH pads with x=488.5+i*180+75 <=
+// 1966-26=1940 (i=0..7) and WEST pads with y=519+i*211+75 <=
+// 2561-26=2535 (i=0..9) survive, each pinned to its EXACT slot_1x1
+// (x,y).  slot_1x1's analog pads are not among the survivors.
 // No analog pads (slot_1x1's analogs are on the cut-away NORTH corner).
 
 `define NO_ANALOG_PADS
@@ -229,40 +263,11 @@
 `ifdef NUM_DVSS_PADS_OVERRIDE
   `define NUM_DVSS_PADS `NUM_DVSS_PADS_OVERRIDE
 `else
-  `define NUM_DVSS_PADS 3
+  `define NUM_DVSS_PADS 2
 `endif
 
 `define NUM_INPUT_PADS 6
-`define NUM_BIDIR_PADS 20
-`define NUM_ANALOG_PADS 0
-
-`endif
-
-`ifdef SLOT_0P5X0P5_2SIDE_EXACT
-
-// Exact-pad QUARTER slot_1x1 (NORTH + EAST edges = bare cuts, keep the
-// SOUTH-WEST corner).  This is the half-width (cut E) and half-height
-// (cut N) exact cases superimposed: only the SOUTH pads with
-// x=488.5+i*180 <= 1966-381 (i=0..5) and the WEST pads with
-// y=519+i*211 <= 2561-381 (i=0..7) survive, each pinned to its EXACT
-// slot_1x1 (x,y).  slot_1x1's analog pads are not among the survivors.
-// No analog pads (slot_1x1's analogs are on the cut-away NORTH corner).
-
-`define NO_ANALOG_PADS
-
-`ifdef NUM_DVDD_PADS_OVERRIDE
-  `define NUM_DVDD_PADS `NUM_DVDD_PADS_OVERRIDE
-`else
-  `define NUM_DVDD_PADS 1
-`endif
-`ifdef NUM_DVSS_PADS_OVERRIDE
-  `define NUM_DVSS_PADS `NUM_DVSS_PADS_OVERRIDE
-`else
-  `define NUM_DVSS_PADS 1
-`endif
-
-`define NUM_INPUT_PADS 6
-`define NUM_BIDIR_PADS 4
+`define NUM_BIDIR_PADS 6
 `define NUM_ANALOG_PADS 0
 
 `endif
