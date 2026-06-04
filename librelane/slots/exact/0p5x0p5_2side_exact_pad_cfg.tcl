@@ -72,6 +72,8 @@ lx_place $block PAD_SOUTH IO_SOUTH 2 [lindex $cp_S 2]  ;# bidir[0].pad @ 1x1 ord
 lx_place $block PAD_SOUTH IO_SOUTH 3 [lindex $cp_S 3]  ;# bidir[1].pad @ 1x1 ordinal 3
 lx_place $block PAD_SOUTH IO_SOUTH 4 [lindex $cp_S 4]  ;# bidir[2].pad @ 1x1 ordinal 4
 lx_place $block PAD_SOUTH IO_SOUTH 5 [lindex $cp_S 5]  ;# bidir[3].pad @ 1x1 ordinal 5
+lx_place $block PAD_SOUTH IO_SOUTH 6 [lindex $cp_S 6]  ;# bidir[4].pad @ 1x1 ordinal 6
+lx_place $block PAD_SOUTH IO_SOUTH 7 [lindex $cp_S 7]  ;# bidir[5].pad @ 1x1 ordinal 7
 
 # PAD_EAST: bare cut edge -- no pads
 
@@ -88,6 +90,8 @@ lx_place $block PAD_WEST IO_WEST 4 [lindex $cp_W 4]  ;# inputs[2].pad @ 1x1 ordi
 lx_place $block PAD_WEST IO_WEST 5 [lindex $cp_W 5]  ;# inputs[3].pad @ 1x1 ordinal 5
 lx_place $block PAD_WEST IO_WEST 6 [lindex $cp_W 6]  ;# inputs[4].pad @ 1x1 ordinal 6
 lx_place $block PAD_WEST IO_WEST 7 [lindex $cp_W 7]  ;# inputs[5].pad @ 1x1 ordinal 7
+lx_place $block PAD_WEST IO_WEST 8 [lindex $cp_W 8]  ;# dvss_pads[1].pad @ 1x1 ordinal 8
+lx_place $block PAD_WEST IO_WEST 9 [lindex $cp_W 9]  ;# dvdd_pads[1].pad @ 1x1 ordinal 9
 
 puts "\[INFO\] Placing corner cells…"
 place_corners $::env(PAD_CORNER)

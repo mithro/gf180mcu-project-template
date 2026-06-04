@@ -187,17 +187,49 @@ def build(cfg: ExactConfig, phys: dict):
     slot_1x1 coordinate falls in the cut-away region are dropped; nothing is
     relocated, so every emitted pad is coordinate-exact.  (slot_1x1's analog
     pads sit on the NORTH far corner that no cut retains -> no analog pads.)
+
+    Per-end limit relaxation
+    ------------------------
+    Each kept edge has two endpoints (low/high in along-axis coords). The
+    pad-clearance limit at each end depends on whether the corner cell at
+    that end is destroyed:
+
+      - Kept corner: pad must clear ``SEAL + CORNER`` (~381um) -- the IO
+        corner cell physically occupies that strip.
+      - Destroyed corner: pad need only clear ``SEAL`` (~26um) -- the
+        corner cell has been destroyed and the IO row extends straight
+        to ``die_dim - SEAL`` via ``IO_<side>_EXT_*`` rows (see PAD_CFG).
+
+    A corner is destroyed iff its OTHER adjacent edge is bare (in
+    ``cfg.cuts``). With this relaxation the kept edges admit ~2 additional
+    slot_1x1 pads each (the ones that previously fell inside the
+    now-deleted corner clearance band) -- see image #6 review.
     """
     die_w, die_h = cfg.die[2], cfg.die[3]
     edges = {"S": [], "N": [], "E": [], "W": []}
+    # For each edge, the perpendicular edges at its low / high endpoints.
+    # S/N edges run along X (low=west end, high=east end).
+    # W/E edges run along Y (low=south end, high=north end).
+    perp = {
+        "S": ("W", "E"),
+        "N": ("W", "E"),
+        "W": ("S", "N"),
+        "E": ("S", "N"),
+    }
     for e in "SNEW":
         if e in cfg.cuts:
             continue
         dim = die_w if e in "SN" else die_h
-        limit = dim - SEAL - CORNER
+        perp_lo, perp_hi = perp[e]
+        # Corner at the low end is destroyed iff the perpendicular edge there
+        # is bare (e.g. S-edge SW corner is destroyed iff W is in cuts).
+        lo_destroyed = perp_lo in cfg.cuts
+        hi_destroyed = perp_hi in cfg.cuts
+        lo_limit = SEAL if lo_destroyed else (SEAL + CORNER)
+        hi_limit = (dim - SEAL) if hi_destroyed else (dim - SEAL - CORNER)
         for i, nm in enumerate(phys[e]):
             off = _offset(e, i)
-            if off + IO_W <= limit + 1e-6:
+            if lo_limit - 1e-6 <= off and off + IO_W <= hi_limit + 1e-6:
                 edges[e].append(
                     {"kind": _kind(nm), "off": off, "src": nm, "ord": i}
                 )
