@@ -28,18 +28,22 @@ PAD_SOUTH: [
     "bidir\\[0\\].pad",
     "bidir\\[1\\].pad",
     "bidir\\[2\\].pad",
-    "bidir\\[3\\].pad"
+    "bidir\\[3\\].pad",
+    "bidir\\[4\\].pad",
+    "bidir\\[5\\].pad"
 ]
 
 PAD_EAST: []
 
 PAD_NORTH: [
-    "bidir\\[4\\].pad",
-    "bidir\\[5\\].pad",
     "bidir\\[6\\].pad",
     "bidir\\[7\\].pad",
     "bidir\\[8\\].pad",
-    "bidir\\[9\\].pad"
+    "bidir\\[9\\].pad",
+    "bidir\\[10\\].pad",
+    "bidir\\[11\\].pad",
+    "bidir\\[12\\].pad",
+    "bidir\\[13\\].pad"
 ]
 
 PAD_WEST: [

@@ -23,7 +23,7 @@
 `endif
 
 `define NUM_INPUT_PADS 12
-`define NUM_BIDIR_PADS 10
+`define NUM_BIDIR_PADS 14
 `define NUM_ANALOG_PADS 0
 
 `endif
@@ -41,12 +41,12 @@
 `ifdef NUM_DVDD_PADS_OVERRIDE
   `define NUM_DVDD_PADS `NUM_DVDD_PADS_OVERRIDE
 `else
-  `define NUM_DVDD_PADS 2
+  `define NUM_DVDD_PADS 4
 `endif
 `ifdef NUM_DVSS_PADS_OVERRIDE
   `define NUM_DVSS_PADS `NUM_DVSS_PADS_OVERRIDE
 `else
-  `define NUM_DVSS_PADS 3
+  `define NUM_DVSS_PADS 5
 `endif
 
 `define NUM_INPUT_PADS 6
@@ -68,16 +68,16 @@
 `ifdef NUM_DVDD_PADS_OVERRIDE
   `define NUM_DVDD_PADS `NUM_DVDD_PADS_OVERRIDE
 `else
-  `define NUM_DVDD_PADS 1
+  `define NUM_DVDD_PADS 2
 `endif
 `ifdef NUM_DVSS_PADS_OVERRIDE
   `define NUM_DVSS_PADS `NUM_DVSS_PADS_OVERRIDE
 `else
-  `define NUM_DVSS_PADS 1
+  `define NUM_DVSS_PADS 2
 `endif
 
 `define NUM_INPUT_PADS 6
-`define NUM_BIDIR_PADS 4
+`define NUM_BIDIR_PADS 6
 `define NUM_ANALOG_PADS 0
 
 `endif

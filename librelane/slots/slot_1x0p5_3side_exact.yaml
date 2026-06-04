@@ -50,7 +50,9 @@ PAD_EAST: [
     "bidir\\[16\\].pad",
     "bidir\\[17\\].pad",
     "bidir\\[18\\].pad",
-    "bidir\\[19\\].pad"
+    "bidir\\[19\\].pad",
+    "dvdd_pads\\[1\\].pad",
+    "dvss_pads\\[2\\].pad"
 ]
 
 PAD_NORTH: []
@@ -58,10 +60,12 @@ PAD_NORTH: []
 PAD_WEST: [
     "inputs\\[0\\].pad",
     "inputs\\[1\\].pad",
-    "dvss_pads\\[2\\].pad",
-    "dvdd_pads\\[1\\].pad",
+    "dvss_pads\\[3\\].pad",
+    "dvdd_pads\\[2\\].pad",
     "inputs\\[2\\].pad",
     "inputs\\[3\\].pad",
     "inputs\\[4\\].pad",
-    "inputs\\[5\\].pad"
+    "inputs\\[5\\].pad",
+    "dvss_pads\\[4\\].pad",
+    "dvdd_pads\\[3\\].pad"
 ]
